@@ -40,7 +40,8 @@ compression, but in fact, if the files are copied as-is into a local Git
 repository, Git will recognize the files as valid.
 
 git-remote-dropbox stores all objects as loose objects - it does not pack
-objects.
+objects. This means that we do not perform delta compression. In addition, we
+do not perform garbage collection of dangling objects.
 
 ## Push
 
