@@ -26,6 +26,7 @@ import json
 import multiprocessing
 import multiprocessing.pool
 import os
+import posixpath
 import subprocess
 import sys
 import zlib
@@ -443,7 +444,7 @@ class Helper(object):
         Return the path to the given ref on the remote.
         """
         assert name.startswith('refs/')
-        return os.path.join(self._url, name)
+        return posixpath.join(self._url, name)
 
     def _ref_name_from_path(self, path):
         """
@@ -459,7 +460,7 @@ class Helper(object):
         """
         prefix = name[:2]
         suffix = name[2:]
-        return os.path.join(self._url, 'objects', prefix, suffix)
+        return posixpath.join(self._url, 'objects', prefix, suffix)
 
     def _get_file(self, path):
         """
@@ -598,7 +599,7 @@ class Helper(object):
         Return the refs present on the remote.
         """
         try:
-            loc = os.path.join(self._url, 'refs')
+            loc = posixpath.join(self._url, 'refs')
             res = self._connection().files_list_folder(loc, recursive=True)
             files = res.entries
             while res.has_more:
@@ -677,4 +678,7 @@ def main():
 
 
 if __name__ == '__main__':
+    if sys.platform == 'win32':
+        import msvcrt
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
     main()
