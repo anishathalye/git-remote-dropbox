@@ -647,6 +647,7 @@ class Config(object):
 
 def main():
     name, url = sys.argv[1:3]
+    url = url.lower()
     if url.startswith('dropbox://'):
         url = url[len('dropbox:/'):]  # keep single leading slash
     if not url.startswith('/') or url.endswith('/'):
