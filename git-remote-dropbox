@@ -24,6 +24,7 @@ import dropbox
 
 import json
 import multiprocessing
+import multiprocessing.dummy
 import multiprocessing.pool
 import os
 import posixpath
@@ -67,6 +68,8 @@ def git_command_output(*args, **kwargs):
     """
     args = ('git',) + args
     output = subprocess.check_output(args, stderr=DEVNULL)
+    if kwargs.get('decode', True):
+        output = output.decode('utf8')
     if kwargs.get('strip', True):
         output = output.strip()
     return output
@@ -125,9 +128,9 @@ def git_object_data(sha, kind=None):
     If kind is None, return a pretty-printed representation of the object.
     """
     if kind is not None:
-        return git_command_output('cat-file', kind, sha, strip=False)
+        return git_command_output('cat-file', kind, sha, decode=False, strip=False)
     else:
-        return git_command_output('cat-file', '-p', sha, strip=False)
+        return git_command_output('cat-file', '-p', sha, decode=False, strip=False)
 
 
 def git_encode_object(sha):
@@ -141,7 +144,7 @@ def git_encode_object(sha):
     kind = git_object_kind(sha)
     size = git_command_output('cat-file', '-s', sha)
     contents = git_object_data(sha, kind)
-    data = '%s %s\0%s' % (kind, size, contents)
+    data = kind.encode('utf8') + b' ' + size.encode('utf8') + b'\0' + contents
     compressed = zlib.compress(data)
     return compressed
 
@@ -153,12 +156,12 @@ def git_decode_object(data):
     This operation is the inverse of `git_encode_object`.
     """
     decompressed = zlib.decompress(data)
-    header, contents = decompressed.split('\0', 1)
+    header, contents = decompressed.split(b'\0', 1)
     kind = header.split()[0]
     p = subprocess.Popen(['git', 'hash-object', '-w', '--stdin', '-t', kind],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=DEVNULL)
-    sha = p.communicate(contents)[0].strip()
+    sha = p.communicate(contents)[0].decode('utf8').strip()
     return sha
 
 
@@ -182,7 +185,7 @@ def git_referenced_objects(sha):
     if kind == 'blob':
         # blob objects do not reference any other objects
         return []
-    data = git_object_data(sha).strip()
+    data = git_object_data(sha).decode('utf8').strip()
     if kind == 'tag':
         # tag objects reference a single object
         obj = data.split('\n')[0].split()[1]
@@ -621,7 +624,7 @@ class Helper(object):
             path = ref_file.path_lower
             name = self._ref_name_from_path(path)
             rev, data = self._get_file(path)
-            sha = data.strip()
+            sha = data.decode('utf8').strip()
             self._refs[name] = (rev, sha)
             refs.append('%s %s' % (sha, name))
         return refs
