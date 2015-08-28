@@ -527,6 +527,7 @@ class Helper(object):
             args = (input_queue, output_queue)
             # use multiprocessing.dummy to use threads instead of processes
             proc = multiprocessing.dummy.Process(target=target, args=args)
+            proc.daemon = True
             proc.start()
             procs.append(proc)
         while queue or pending:
