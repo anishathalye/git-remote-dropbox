@@ -10,19 +10,19 @@ are multiple people operating on the repository at once, making it possible to
 use a Dropbox shared folder as a Git remote for collaboration.
 
 Once the helper is installed, using it is as simple as adding a remote like
-`dropbox::/path/to/repo`.
+`dropbox://path/to/repo`.
 
 To clone repositories in folders or shared folders mounted in your Dropbox, you
 can run:
 
 ```bash
-git clone "dropbox::/path/to/repo"
+git clone "dropbox://path/to/repo"
 ```
 
 To add a remote to an existing local repository, you can run:
 
 ```bash
-git remote add origin "dropbox::/path/to/repo"
+git remote add origin "dropbox://path/to/repo"
 ```
 
 The repository directory will be created automatically the first time you push.
