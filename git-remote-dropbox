@@ -590,7 +590,7 @@ class Helper(object):
         self._trace('writing ref %s with mode %s' % (dst, mode))
         data = '%s\n' % new_sha
         try:
-            self._connection().files_upload(data, path, mode, mute=True)
+            self._connection().files_upload(data.encode('utf-8'), path, mode, mute=True)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.reason, dropbox.files.UploadError):
                 raise
