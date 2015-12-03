@@ -409,7 +409,7 @@ class Helper(object):
         try:
             self._connection().files_delete(self._ref_path(ref))
         except dropbox.exceptions.ApiError as e:
-            if not isinstance(e.reason, dropbox.files.DeleteError):
+            if not isinstance(e.error, dropbox.files.DeleteError):
                 raise
             # someone else might have deleted it first, that's fine
         self._refs.pop(ref, None)  # discard
@@ -592,7 +592,7 @@ class Helper(object):
         try:
             self._connection().files_upload(data, path, mode, mute=True)
         except dropbox.exceptions.ApiError as e:
-            if not isinstance(e.reason, dropbox.files.UploadError):
+            if not isinstance(e.error, dropbox.files.UploadError):
                 raise
             return 'fetch first'
         else:
@@ -610,7 +610,7 @@ class Helper(object):
                 res = self._connection().files_list_folder_continue(res.cursor)
                 files.extend(res.entries)
         except dropbox.exceptions.ApiError as e:
-            if not isinstance(e.reason, dropbox.files.ListFolderError):
+            if not isinstance(e.error, dropbox.files.ListFolderError):
                 raise
             if not for_push:
                 # if we're pushing, it's okay if nothing exists beforehand,
