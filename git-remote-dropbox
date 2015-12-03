@@ -202,9 +202,11 @@ def git_referenced_objects(sha):
                 break
         return objs
     elif kind == 'tree':
-        # tree objects reference zero or more trees and blobs
+        # tree objects reference zero or more trees and blobs, or submodules
         lines = data.split('\n')
-        return [line.split()[2] for line in lines]
+        # submodules have the mode '160000' and the kind 'commit', we filter them out because
+        # there is nothing to download and this causes errors
+        return [line.split()[2] for line in lines if not line.startswith('160000 commit ')]
     else:
         raise Exception('unexpected git object type: %s' % kind)
 
