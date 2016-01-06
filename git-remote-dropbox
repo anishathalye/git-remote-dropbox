@@ -612,7 +612,7 @@ class Helper(object):
                 res = self._connection().files_list_folder_continue(res.cursor)
                 files.extend(res.entries)
         except dropbox.exceptions.ApiError as e:
-            if not isinstance(e.error, dropbox.files.ListFolderError):
+            if hasattr(e, 'error') and not isinstance(e.error, dropbox.files.ListFolderError):
                 raise
             if not for_push:
                 # if we're pushing, it's okay if nothing exists beforehand,
