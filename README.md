@@ -106,7 +106,7 @@ information on what you can do about that.
 
 ## License
 
-Copyright (c) 2015 Anish Athalye. Released under the MIT License. See
+Copyright (c) 2015-2016 Anish Athalye. Released under the MIT License. See
 [LICENSE.md][license] for details.
 
 [dropbox-sdk-python]: https://github.com/dropbox/dropbox-sdk-python
