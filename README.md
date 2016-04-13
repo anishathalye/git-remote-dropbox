@@ -34,7 +34,8 @@ concurrent operations, even when using a shared folder.
 
 ## Setup
 
-1. Install the [Python library for Dropbox API v2][dropbox-sdk-python].
+1. Install the [Python library for Dropbox API v2][dropbox-sdk-python]. This
+   can be installed by running `pip install dropbox`.
 
 2. Download the `git-remote-dropbox` script somewhere in your `$PATH` and make
    sure it's executable by running `chmod +x git-remote-dropbox`.
