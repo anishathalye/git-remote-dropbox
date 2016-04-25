@@ -130,10 +130,7 @@ def git_object_data(sha, kind=None):
 
     If kind is None, return a pretty-printed representation of the object.
     """
-    if kind is not None:
-        return git_command_output('cat-file', kind, sha, decode=False, strip=False)
-    else:
-        return git_command_output('cat-file', '-p', sha, decode=False, strip=False)
+    return git_command_output('cat-file', kind or '-p', sha, decode=False, strip=False)
 
 
 def git_encode_object(sha):
