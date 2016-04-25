@@ -33,6 +33,9 @@ import sys
 import zlib
 
 
+__version__ = '0.1.0'
+
+
 CONFIG_FILE = '~/.git-remote-dropbox.json'
 DEVNULL = open(os.devnull, 'w')
 PROCESSES = 20

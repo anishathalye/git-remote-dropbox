@@ -1,4 +1,5 @@
-# The MIT License (MIT)
+The MIT License (MIT)
+=====================
 
 **Copyright (c) 2015-2016 Anish Athalye (me@anishathalye.com)**
 
