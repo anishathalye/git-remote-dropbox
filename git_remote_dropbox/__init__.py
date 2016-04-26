@@ -641,8 +641,7 @@ class Config(object):
     """
 
     def __init__(self, filename):
-        path = os.path.expanduser(filename)
-        with open(path) as f:
+        with open(filename) as f:
             self._settings = json.load(f)
 
     def __getitem__(self, key):
@@ -663,13 +662,26 @@ def main():
         stderr('error: URL must have leading slash and no trailing slash\n')
         exit(1)
 
-    try:
-        config = Config(CONFIG_FILE)
-    except ValueError:
-        stderr('error: malformed config file: %s\n' % CONFIG_FILE)
-        exit(1)
-    except IOError:
-        stderr('error: missing config file: %s\n' % CONFIG_FILE)
+    config_files = [
+        os.path.join(os.environ.get('XDG_CONFIG_HOME',
+                                    os.path.expanduser('~/.config')),
+                    'git',
+                    'git-remote-dropbox.json'),
+        os.path.expanduser('~/.git-remote-dropbox.json'),
+    ]
+    config = None
+    for config_file in config_files:
+        try:
+            config = Config(config_file)
+        except ValueError:
+            stderr('error: malformed config file: %s\n' % config_file)
+            exit(1)
+        except IOError:
+            continue
+        else:
+            break
+    if not config:
+        stderr('error: missing config file: %s\n' % config_files[0])
         exit(1)
     try:
         token = config['token']
