@@ -43,8 +43,8 @@ Setup
    with full access to all files and file types, and generating an access token
    for yourself.
 
-3. Save your OAuth token in ``~/.git-remote-dropbox.json``. The file should
-   look something like this:
+3. Save your OAuth token in ``~/.config/git/git-remote-dropbox.json`` or
+   ``~/.git-remote-dropbox.json``. The file should look something like this:
 
 .. code:: json
 
