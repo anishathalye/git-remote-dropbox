@@ -65,6 +65,15 @@ def readline():
     return sys.stdin.readline().strip()  # remove trailing newline
 
 
+def stdout_to_binary():
+    """
+    Ensure that stdout is in binary mode on windows
+    """
+    if sys.platform == 'win32':
+        import msvcrt
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
+
 def git_command_output(*args, **kwargs):
     """
     Return the result of running a git command.
@@ -340,6 +349,8 @@ class Helper(object):
         """
         Run the helper following the git remote helper communication protocol.
         """
+        stdout_to_binary()
+
         while True:
             line = readline()
             if line == 'capabilities':
@@ -719,7 +730,4 @@ def main():
 
 
 if __name__ == '__main__':
-    if sys.platform == 'win32':
-        import msvcrt
-        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
     main()
