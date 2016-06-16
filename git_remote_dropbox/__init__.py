@@ -65,6 +65,15 @@ def readline():
     return sys.stdin.readline().strip()  # remove trailing newline
 
 
+def stdout_to_binary():
+    """
+    Ensure that stdout is in binary mode on windows
+    """
+    if sys.platform == 'win32':
+        import msvcrt
+        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
+
 def git_command_output(*args, **kwargs):
     """
     Return the result of running a git command.
@@ -673,6 +682,9 @@ class Config(object):
 
 
 def main():
+    # configure system
+    stdout_to_binary()
+
     name, url = sys.argv[1:3]
     url = url.lower()
     if url.startswith('dropbox://'):
@@ -719,7 +731,4 @@ def main():
 
 
 if __name__ == '__main__':
-    if sys.platform == 'win32':
-        import msvcrt
-        msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
     main()
