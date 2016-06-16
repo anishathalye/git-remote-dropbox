@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2015 Anish Athalye (me@anishathalye.com)
+# Copyright (c) 2015-2016 Anish Athalye (me@anishathalye.com)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,9 @@ import posixpath
 import subprocess
 import sys
 import zlib
+
+
+__version__ = '0.2.0'
 
 
 CONFIG_FILE = '~/.git-remote-dropbox.json'
@@ -217,9 +220,8 @@ class Level(object):
     """
 
     ERROR = 0
-    WARNING = 1
-    INFO = 2
-    DEBUG = 3
+    INFO = 1
+    DEBUG = 2
 
 
 class Poison(object):
@@ -289,7 +291,7 @@ class Helper(object):
         self._token = token
         self._url = url
         self._processes = processes
-        self._verbosity = Level.WARNING  # default verbosity
+        self._verbosity = Level.INFO  # default verbosity
         self._refs = {}  # map from remote ref name => (rev number, sha)
         self._pushed = {}  # map from remote ref name => sha
 
@@ -302,19 +304,21 @@ class Helper(object):
         else:
             stdout('\n')
 
-    def _trace(self, message, level=Level.DEBUG):
+    def _trace(self, message, level=Level.DEBUG, exact=False):
         """
         Log a message with a given severity level.
         """
         if level > self._verbosity:
             return
+        if exact:
+            if level == self._verbosity:
+                stderr(message)
+            return
         if level <= Level.ERROR:
             stderr('error: %s\n' % message)
-        elif level == Level.WARNING:
-            stderr('warning: %s\n' % message)
         elif level == Level.INFO:
             stderr('info: %s\n' % message)
-        elif level == Level.DEBUG:
+        elif level >= Level.DEBUG:
             stderr('debug: %s\n' % message)
 
     def _fatal(self, message):
@@ -433,7 +437,16 @@ class Helper(object):
         try:
             # upload objects in parallel
             pool = multiprocessing.pool.ThreadPool(processes=self._processes)
-            pool.map(Binder(self, '_put_object'), objects)
+            res = pool.imap_unordered(Binder(self, '_put_object'), objects)
+            # show progress
+            total = len(objects)
+            self._trace('', level=Level.INFO, exact=True)
+            for done, _ in enumerate(res, 1):
+                pct = float(done) / total
+                message = '\rWriting objects: {:4.0%} ({}/{})'.format(pct, done, total)
+                if done == total:
+                    message = '%s, done.\n' % message
+                self._trace(message, level=Level.INFO, exact=True)
         except Exception:
             self._fatal('exception while writing objects')
         sha = git_ref_value(src)
@@ -535,6 +548,7 @@ class Helper(object):
             proc.daemon = True
             proc.start()
             procs.append(proc)
+        self._trace('', level=Level.INFO, exact=True) # for showing progress
         while queue or pending:
             if queue:
                 # if possible, queue up download
@@ -560,6 +574,14 @@ class Helper(object):
                 pending.remove(res)
                 downloaded.add(res)
                 queue.extend(git_referenced_objects(res))
+                # show progress
+                done = len(downloaded)
+                total = done + len(pending)
+                pct = float(done) / total
+                message = '\rReceiving objects: {:4.0%} ({}/{})'.format(pct, done, total)
+                self._trace(message, level=Level.INFO, exact=True)
+        self._trace('\rReceiving objects: 100% ({}/{}), done.\n'.format(done, total),
+                    level=Level.INFO, exact=True)
         for proc in procs:
             input_queue.put(Poison())
         for proc in procs:
@@ -617,7 +639,7 @@ class Helper(object):
             if not for_push:
                 # if we're pushing, it's okay if nothing exists beforehand,
                 # but it's good to notify the user just in case
-                self._trace('repository is empty', Level.WARNING)
+                self._trace('repository is empty', Level.INFO)
             return []
         refs = []
         for ref_file in files:
@@ -638,8 +660,7 @@ class Config(object):
     """
 
     def __init__(self, filename):
-        path = os.path.expanduser(filename)
-        with open(path) as f:
+        with open(filename) as f:
             self._settings = json.load(f)
 
     def __getitem__(self, key):
@@ -660,13 +681,26 @@ def main():
         stderr('error: URL must have leading slash and no trailing slash\n')
         exit(1)
 
-    try:
-        config = Config(CONFIG_FILE)
-    except ValueError:
-        stderr('error: malformed config file: %s\n' % CONFIG_FILE)
-        exit(1)
-    except IOError:
-        stderr('error: missing config file: %s\n' % CONFIG_FILE)
+    config_files = [
+        os.path.join(os.environ.get('XDG_CONFIG_HOME',
+                                    os.path.expanduser('~/.config')),
+                     'git',
+                     'git-remote-dropbox.json'),
+        os.path.expanduser('~/.git-remote-dropbox.json'),
+    ]
+    config = None
+    for config_file in config_files:
+        try:
+            config = Config(config_file)
+        except ValueError:
+            stderr('error: malformed config file: %s\n' % config_file)
+            exit(1)
+        except IOError:
+            continue
+        else:
+            break
+    if not config:
+        stderr('error: missing config file: %s\n' % config_files[0])
         exit(1)
     try:
         token = config['token']
