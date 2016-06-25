@@ -621,7 +621,7 @@ class Helper(object):
                 # writes before this does
                 mode = dropbox.files.WriteMode('add')
         self._trace('writing ref %s with mode %s' % (dst, mode))
-        data = '%s\n' % new_sha
+        data = ('%s\n' % new_sha).encode('utf8')
         try:
             self._connection().files_upload(data, path, mode, mute=True)
         except dropbox.exceptions.ApiError as e:
