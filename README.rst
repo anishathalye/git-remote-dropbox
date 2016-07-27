@@ -105,7 +105,7 @@ Contributing
 ------------
 
 Do you have ideas on how to improve git-remote-dropbox? Have a feature request,
-bug report, or patch? Great! See `CONTRIBUTING.rst <CONTRIBUTING.rst>`__ for
+bug report, or patch? Great! See `CONTRIBUTING.md <CONTRIBUTING.md>`__ for
 information on what you can do about that.
 
 Packaging
