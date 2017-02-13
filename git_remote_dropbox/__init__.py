@@ -170,7 +170,7 @@ def git_decode_object(data):
     decompressed = zlib.decompress(data)
     header, contents = decompressed.split(b'\0', 1)
     kind = header.split()[0]
-    p = subprocess.Popen(['git', 'hash-object', '-w', '--stdin', '-t', kind],
+    p = subprocess.Popen(['git', 'hash-object', '-w', '--stdin', '-t', kind.decode('utf8')],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=DEVNULL)
     sha = p.communicate(contents)[0].decode('utf8').strip()
