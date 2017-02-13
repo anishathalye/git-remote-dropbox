@@ -33,7 +33,7 @@ import sys
 import zlib
 
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 
 
 CONFIG_FILE = '~/.git-remote-dropbox.json'
