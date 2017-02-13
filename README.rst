@@ -120,5 +120,5 @@ Packaging
 License
 -------
 
-Copyright (c) 2015-2016 Anish Athalye. Released under the MIT License. See
+Copyright (c) 2015-2017 Anish Athalye. Released under the MIT License. See
 `LICENSE.rst <LICENSE.rst>`__ for details.
