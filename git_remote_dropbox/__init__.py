@@ -558,6 +558,7 @@ class Helper(object):
             proc.start()
             procs.append(proc)
         self._trace('', level=Level.INFO, exact=True) # for showing progress
+        done = total = 0
         while queue or pending:
             if queue:
                 # if possible, queue up download
