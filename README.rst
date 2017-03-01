@@ -94,6 +94,27 @@ idea. It's not. Using the desktop client to sync a bare Git repository is not
 safe. Concurrent changes or delays in syncing can result in a corrupted Git
 repository.
 
+**How can I access / recover my repository from Dropbox without using the
+git-remote-dropbox helper?**
+
+Because git-remote-dropbox uses an on-disk format that's compatible with Git,
+accessing your repository without using the helper is easy:
+
+1. Download the repository data (a directory containing the ``objects`` and
+   ``refs`` directories) from Dropbox.
+
+2. Make a new directory and initialize an empty Git repository in the
+   directory.
+
+3. Overwrite ``.git/refs`` and ``.git/objects`` in your newly initialized
+   repository with the data downloaded from Dropbox (using a command like ``rm
+   -rf .git/{refs,objects} && cp -r /path/to/data/{refs,objects} .git/``).
+
+4. Check out a branch (using a command like ``git checkout -f master``).
+
+5. Optionally, run ``git gc --aggressive`` to save disk space in your local
+   repository.
+
 Design
 ------
 
