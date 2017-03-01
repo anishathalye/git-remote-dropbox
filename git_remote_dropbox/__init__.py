@@ -304,6 +304,10 @@ class Helper(object):
         self._refs = {}  # map from remote ref name => (rev number, sha)
         self._pushed = {}  # map from remote ref name => sha
 
+    @property
+    def verbosity(self):
+        return self._verbosity
+
     def _write(self, message=None):
         """
         Write a message to standard output.
@@ -457,7 +461,10 @@ class Helper(object):
                     message = '%s, done.\n' % message
                 self._trace(message, level=Level.INFO, exact=True)
         except Exception:
-            self._fatal('exception while writing objects')
+            if self.verbosity >= Level.DEBUG:
+                raise # re-raise exception so it prints out a stack trace
+            else:
+                self._fatal('exception while writing objects (run with -v for details)\n')
         sha = git_ref_value(src)
         error = self._write_ref(sha, dst, force)
         if error is None:
@@ -724,7 +731,11 @@ def main():
     try:
         helper.run()
     except Exception:
-        stderr('error: unexpected exception\n')
+        if helper.verbosity >= Level.DEBUG:
+            raise # re-raise exception so it prints out a stack trace
+        else:
+            stderr('error: unexpected exception (run with -v for details)\n')
+            exit(1)
     except KeyboardInterrupt:
         # exit silently with an error code
         exit(1)
