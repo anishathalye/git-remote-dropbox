@@ -353,6 +353,8 @@ class Helper(object):
         """
         Run the helper following the git remote helper communication protocol.
         """
+        stdout_to_binary()
+
         while True:
             line = readline()
             if line == 'capabilities':
