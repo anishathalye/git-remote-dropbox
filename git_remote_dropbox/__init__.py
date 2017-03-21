@@ -31,7 +31,7 @@ import posixpath
 import subprocess
 import sys
 import zlib
-
+from urlparse import urlparse
 
 __version__ = '0.2.4'
 
@@ -692,9 +692,10 @@ class Config(object):
 def main():
     # configure system
     stdout_to_binary()
-
     name, url = sys.argv[1:3]
-    url = url.lower()
+    url_parse = urlparse(url.lower())
+    token_key = url_parse.username or 'token'
+    url = url_parse.scheme + '://' + url_parse.hostname + url_parse.path
     if url.startswith('dropbox://'):
         url = url[len('dropbox:/'):]  # keep single leading slash
     if not url.startswith('/') or url.endswith('/'):
@@ -723,7 +724,7 @@ def main():
         stderr('error: missing config file: %s\n' % config_files[0])
         exit(1)
     try:
-        token = config['token']
+        token = config[token_key]
     except KeyError:
         stderr('error: config file missing token\n')
         exit(1)

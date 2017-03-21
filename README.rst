@@ -20,11 +20,19 @@ can run:
 
     git clone "dropbox://path/to/repo"
 
+    or
+
+    git clone "dropbox://username@path/to/repo"
+
 To add a remote to an existing local repository, you can run:
 
 .. code:: bash
 
     git remote add origin "dropbox://path/to/repo"
+
+    or
+
+    git remote add origin "dropbox://username@path/to/repo"
 
 The repository directory will be created automatically the first time you push.
 
@@ -49,7 +57,8 @@ Setup
 .. code:: json
 
     {
-        "token": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx"
+        "token": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx",
+        "username": "yyyyyyyy-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy-yyyyyyyyyyyyyyyyyyyyy"
     }
 
 Notes
