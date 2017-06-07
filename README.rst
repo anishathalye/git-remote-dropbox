@@ -108,7 +108,7 @@ accessing your repository without using the helper is easy:
 
 3. Overwrite ``.git/refs`` and ``.git/objects`` in your newly initialized
    repository with the data downloaded from Dropbox (using a command like ``rm
-   -rf .git/{refs,objects} && cp -r /path/to/data/{refs,objects} .git/``).
+   -rf .git/{refs,objects} && cp -r /path/to/data/{refs,objects}.git/``).
 
 4. Check out a branch (using a command like ``git checkout -f master``).
 
