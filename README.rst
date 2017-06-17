@@ -11,20 +11,20 @@ are multiple people operating on the repository at once, making it possible to
 use a Dropbox shared folder as a Git remote for collaboration.
 
 Once the helper is installed, using it is as simple as adding a remote like
-``dropbox://path/to/repo``.
+``dropbox:///path/to/repo``.
 
 To clone repositories in folders or shared folders mounted in your Dropbox, you
 can run:
 
 .. code:: bash
 
-    git clone "dropbox://path/to/repo"
+    git clone "dropbox:///path/to/repo"
 
 To add a remote to an existing local repository, you can run:
 
 .. code:: bash
 
-    git remote add origin "dropbox://path/to/repo"
+    git remote add origin "dropbox:///path/to/repo"
 
 The repository directory will be created automatically the first time you push.
 
@@ -46,11 +46,32 @@ Setup
 3. Save your OAuth token in ``~/.config/git/git-remote-dropbox.json`` or
    ``~/.git-remote-dropbox.json``. The file should look something like this:
 
+   .. code:: json
+
+       {
+           "default": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx"
+       }
+
+Multiple Accounts
+-----------------
+
+git-remote-dropbox supports using multiple Dropbox accounts. You can create
+OAuth tokens for different accounts and add them all to the config file, using
+a user-defined username as the key:
+
 .. code:: json
 
     {
-        "token": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx"
+        "alice": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx",
+        "ben": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx",
+        "charlie": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx"
     }
+
+You can tell git-remote-dropbox to use the token corresponding to ``username``
+by specifying a URL like ``dropbox://username@/path/to/repo``.
+
+You can also specify the token inline by using a URL like
+``dropbox://:token@/path/to/repo``.
 
 Notes
 -----

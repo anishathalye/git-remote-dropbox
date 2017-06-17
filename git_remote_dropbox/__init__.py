@@ -31,6 +31,10 @@ import posixpath
 import subprocess
 import sys
 import zlib
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 
 __version__ = '0.2.4'
@@ -296,9 +300,9 @@ class Helper(object):
     A git remote helper to communicate with Dropbox.
     """
 
-    def __init__(self, token, url, processes=PROCESSES):
+    def __init__(self, token, path, processes=PROCESSES):
         self._token = token
-        self._url = url
+        self._path = path
         self._processes = processes
         self._verbosity = Level.INFO  # default verbosity
         self._refs = {}  # map from remote ref name => (rev number, sha)
@@ -478,13 +482,13 @@ class Helper(object):
         Return the path to the given ref on the remote.
         """
         assert name.startswith('refs/')
-        return posixpath.join(self._url, name)
+        return posixpath.join(self._path, name)
 
     def _ref_name_from_path(self, path):
         """
         Return the ref name given the full path of the remote ref.
         """
-        prefix = '%s/' % self._url
+        prefix = '%s/' % self._path
         assert path.startswith(prefix)
         return path[len(prefix):]
 
@@ -494,7 +498,7 @@ class Helper(object):
         """
         prefix = name[:2]
         suffix = name[2:]
-        return posixpath.join(self._url, 'objects', prefix, suffix)
+        return posixpath.join(self._path, 'objects', prefix, suffix)
 
     def _get_file(self, path):
         """
@@ -644,7 +648,7 @@ class Helper(object):
         Return the refs present on the remote.
         """
         try:
-            loc = posixpath.join(self._url, 'refs')
+            loc = posixpath.join(self._path, 'refs')
             res = self._connection().files_list_folder(loc, recursive=True)
             files = res.entries
             while res.has_more:
@@ -693,12 +697,28 @@ def main():
     # configure system
     stdout_to_binary()
 
-    name, url = sys.argv[1:3]
-    url = url.lower()
-    if url.startswith('dropbox://'):
-        url = url[len('dropbox:/'):]  # keep single leading slash
-    if not url.startswith('/') or url.endswith('/'):
-        stderr('error: URL must have leading slash and no trailing slash\n')
+    url = sys.argv[2]
+    # urls are one of:
+    # dropbox:///path/to/repo
+    # dropbox://username@/path/to/repo
+    # dropbox://:token@/path/to/repo
+    url = urlparse(url)
+    if url.scheme != 'dropbox':
+        stderr('error: URL must start with the "dropbox://" scheme\n')
+        exit(1)
+    if url.netloc:
+        if not url.username and not url.password:
+            # user probably put in something like "dropbox://path/to/repo"
+            # missing the third "/"
+            stderr('error: URL with no username or token must start with "dropbox:///"\n')
+            exit(1)
+        if url.username and url.password:
+            # user supplied both username and token
+            stderr('error: URL must not specify both username and token\n')
+            exit(1)
+    path = url.path.lower() # dropbox is case insensitive, so we must canonicalize
+    if path.endswith('/'):
+        stderr('error: URL path must not have trailing slash\n')
         exit(1)
 
     config_files = [
@@ -723,12 +743,18 @@ def main():
         stderr('error: missing config file: %s\n' % config_files[0])
         exit(1)
     try:
-        token = config['token']
+        if url.password:
+            token = url.password
+        elif not url.username:
+            token = config['default']
+        else:
+            token = config[url.username]
     except KeyError:
-        stderr('error: config file missing token\n')
+        token_name = url.username or 'default'
+        stderr('error: config file missing token for key "%s"\n' % token_name)
         exit(1)
 
-    helper = Helper(token, url)
+    helper = Helper(token, path)
     try:
         helper.run()
     except Exception:
