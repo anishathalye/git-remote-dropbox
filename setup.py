@@ -65,7 +65,7 @@ setup(
 
     packages=['git_remote_dropbox'],
 
-    install_requires=['dropbox>=6.1,<7'],
+    install_requires=['dropbox>=8.0,<9'],
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
