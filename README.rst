@@ -40,8 +40,8 @@ Setup
 
 2. Generate an OAuth 2 token by going to the `app console
    <https://www.dropbox.com/developers/apps>`__, creating a Dropbox API app
-   with full access to all files and file types, and generating an access token
-   for yourself.
+   folder (or a folder with full access, if you prefer), and generating an
+   access token for yourself.
 
 3. Save your OAuth token in ``~/.config/git/git-remote-dropbox.json`` or
    ``~/.git-remote-dropbox.json``. The file should look something like this:
