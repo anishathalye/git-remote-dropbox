@@ -227,6 +227,13 @@ def git_referenced_objects(sha):
         raise Exception('unexpected git object type: %s' % kind)
 
 
+def git_symbolic_ref(name):
+    """
+    Return the symbolic ref.
+    """
+    return git_command_output('symbolic-ref', name)
+
+
 class Level(object):
     """
     A class for severity levels.
@@ -307,6 +314,7 @@ class Helper(object):
         self._verbosity = Level.INFO  # default verbosity
         self._refs = {}  # map from remote ref name => (rev number, sha)
         self._pushed = {}  # map from remote ref name => sha
+        self._first_push = False
 
     @property
     def verbosity(self):
@@ -395,20 +403,34 @@ class Helper(object):
         refs = self._get_refs(for_push=for_push)
         for ref in refs:
             self._write(ref)
+        if not for_push:
+            head_ref = self._read_sym_ref('HEAD')
+            if head_ref:
+                self._write('@%s HEAD' % head_ref)
+            else:
+                self._trace('no default branch on remote', Level.INFO)
         self._write()
 
     def _do_push(self, line):
         """
         Handle the push command.
         """
+        local_head = None
         while True:
             src, dst = line.split(' ')[1].split(':')
             if src == '':
                 self._delete(dst)
             else:
                 self._push(src, dst)
+                if self._first_push:
+                    if not local_head or src == git_symbolic_ref('HEAD'):
+                        local_head = dst
             line = readline()
             if line == '':
+                if self._first_push:
+                    self._first_push = False
+                    if not self._write_sym_ref('HEAD', local_head):
+                        self._trace('failed to set default branch on remote', Level.INFO)
                 break
         self._write()
 
@@ -661,6 +683,8 @@ class Helper(object):
                 # if we're pushing, it's okay if nothing exists beforehand,
                 # but it's good to notify the user just in case
                 self._trace('repository is empty', Level.INFO)
+            else:
+                self._first_push = True
             return []
         refs = []
         for ref_file in files:
@@ -674,6 +698,36 @@ class Helper(object):
             refs.append('%s %s' % (sha, name))
         return refs
 
+    def _write_sym_ref(self, path, ref):
+        """
+        Write the given symbolic reference to the remote.
+        """
+        path = posixpath.join(self._path, path)
+        mode = dropbox.files.WriteMode('add')
+        data = ('ref: %s\n' % ref).encode('utf8')
+        self._trace('writing symbolic ref %s with mode %s' % (path, mode))
+        try:
+            self._connection().files_upload(data, path, mode, mute=True)
+            return True
+        except dropbox.exceptions.ApiError as e:
+            if not isinstance(e.error, dropbox.files.UploadError):
+                raise
+            return False
+
+    def _read_sym_ref(self, path):
+        """
+        Return the symbolic ref from the remote or None if not found
+        """
+        path = posixpath.join(self._path, path)
+        self._trace('fetching symbolic ref: %s' % path)
+        try:
+            _, resp = self._connection().files_download(path)
+            ref = resp.content.decode('utf8')
+            return ref[len('ref: '):].rstrip()
+        except dropbox.exceptions.ApiError as e:
+            if not isinstance(e.error, dropbox.files.DownloadError):
+                raise
+            return None
 
 class Config(object):
     """
