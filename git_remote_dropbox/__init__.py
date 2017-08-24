@@ -37,7 +37,7 @@ except ImportError:
     from urlparse import urlparse
 
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 
 CONFIG_FILE = '~/.git-remote-dropbox.json'
