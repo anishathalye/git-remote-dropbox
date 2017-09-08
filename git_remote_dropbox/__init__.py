@@ -623,9 +623,11 @@ class Helper(object):
             info = self._refs.get(dst, None)
             if info:
                 rev, sha = info
+                if not git_object_exists(sha):
+                    return 'fetch first'
                 is_fast_forward = git_is_ancestor(sha, new_sha)
                 if not is_fast_forward and not force:
-                    return 'non-fast-forward'
+                    return 'non-fast forward'
                 # perform an atomic compare-and-swap
                 mode = dropbox.files.WriteMode.update(rev)
             else:
