@@ -94,6 +94,8 @@ Notes
 - After cloning a repository from Dropbox, Git will not automatically check out
   a branch. To check out a branch, run ``git checkout <branch>``.
 
+- Each folder is a repository in the Dropbox folder. They can be listed and removed there. 
+
 FAQ
 ---
 
