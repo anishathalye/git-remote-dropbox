@@ -91,9 +91,6 @@ Notes
 - Cloning a repository or fetching a lot of objects produces lots of loose
   objects. To save space in the local repository, run ``git gc --aggressive``.
 
-- After cloning a repository from Dropbox, Git will not automatically check out
-  a branch. To check out a branch, run ``git checkout <branch>``.
-
 FAQ
 ---
 
@@ -135,6 +132,19 @@ accessing your repository without using the helper is easy:
 
 5. Optionally, run ``git gc --aggressive`` to save disk space in your local
    repository.
+
+**How can I set / update the default remote HEAD of my repository with
+git-remote-dropbox?**
+
+The default remote head is the branch, that will be checked out upon cloning.
+
+When the first push occurs to a Dropbox remote, the remote's default head
+will be pointing to the current local branch's remote pair or if that is not
+pushed, then the first pushed branch.
+
+After the first push you can only change the default remote head, if you modify
+the contents of ``path/to/repo/HEAD`` directly on Dropbox to
+``ref: refs/heads/name-of-new-default-branch``
 
 Design
 ------
