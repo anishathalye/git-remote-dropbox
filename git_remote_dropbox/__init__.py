@@ -459,8 +459,8 @@ class Helper(object):
             total = len(objects)
             self._trace('', level=Level.INFO, exact=True)
             for done, _ in enumerate(res, 1):
-                pct = float(done) / total
-                message = '\rWriting objects: {:4.0%} ({}/{})'.format(pct, done, total)
+                pct = int(float(done) / total * 100)
+                message = '\rWriting objects: {:3.0f}% ({}/{})'.format(pct, done, total)
                 if done == total:
                     message = '%s, done.\n' % message
                 self._trace(message, level=Level.INFO, exact=True)
@@ -598,8 +598,8 @@ class Helper(object):
                 # show progress
                 done = len(downloaded)
                 total = done + len(pending)
-                pct = float(done) / total
-                message = '\rReceiving objects: {:4.0%} ({}/{})'.format(pct, done, total)
+                pct = int(float(done) / total * 100)
+                message = '\rReceiving objects: {:3.0f}% ({}/{})'.format(pct, done, total)
                 self._trace(message, level=Level.INFO, exact=True)
         self._trace('\rReceiving objects: 100% ({}/{}), done.\n'.format(done, total),
                     level=Level.INFO, exact=True)
