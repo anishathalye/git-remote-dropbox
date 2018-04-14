@@ -510,6 +510,13 @@ class Helper(object):
         meta, resp = self._connection().files_download(path)
         return (meta.rev, resp.content)
 
+    def _get_files(self, paths):
+        """
+        Return a list of (revision number, content) for a given list of files.
+        """
+        pool = multiprocessing.dummy.Pool(self._processes)
+        return pool.map(self._get_file, paths)
+
     def _put_object(self, sha):
         """
         Upload an object to the remote.
@@ -664,13 +671,12 @@ class Helper(object):
                 # but it's good to notify the user just in case
                 self._trace('repository is empty', Level.INFO)
             return []
+        files = [i for i in files if isinstance(i, dropbox.files.FileMetadata)]
+        paths = [i.path_lower for i in files]
+        revs, data = zip(*self._get_files(paths))
         refs = []
-        for ref_file in files:
-            if not isinstance(ref_file, dropbox.files.FileMetadata):
-                continue
-            path = ref_file.path_lower
+        for path, rev, data in zip(paths, revs, data):
             name = self._ref_name_from_path(path)
-            rev, data = self._get_file(path)
             sha = data.decode('utf8').strip()
             self._refs[name] = (rev, sha)
             refs.append('%s %s' % (sha, name))
