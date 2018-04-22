@@ -44,6 +44,7 @@ CONFIG_FILE = '~/.git-remote-dropbox.json'
 DEVNULL = open(os.devnull, 'w')
 PROCESSES = 20
 MAX_RETRIES = 3
+CHUNK_SIZE = 50*1024*1024 # 50 megabytes
 
 
 def stdout(line):
@@ -525,18 +526,60 @@ class Helper(object):
         path = self._object_path(sha)
         self._trace('writing: %s' % path)
         retries = 0
-        while True:
-            try:
-                mode = dropbox.files.WriteMode('overwrite')
-                self._connection().files_upload(data, path, mode, mute=True)
-            except dropbox.exceptions.InternalServerError:
-                self._trace('internal server error writing %s, retrying' % sha)
-                if retries < MAX_RETRIES:
-                    retries += 1
+        mode = dropbox.files.WriteMode('overwrite')
+
+        if len(data) <= CHUNK_SIZE:
+            while True:
+                try:
+                    self._connection().files_upload(data, path, mode, mute=True)
+                except dropbox.exceptions.InternalServerError:
+                    self._trace('internal server error writing %s, retrying' % sha)
+                    if retries < MAX_RETRIES:
+                        retries += 1
+                    else:
+                        raise
                 else:
-                    raise
-            else:
-                break
+                    break
+        else:
+            conn = self._connection()
+            cursor = dropbox.files.UploadSessionCursor(offset=0)
+            done_uploading = False
+
+            while not done_uploading:
+                try:
+                    end = cursor.offset + CHUNK_SIZE
+                    chunk = data[(cursor.offset):end]
+
+                    if cursor.offset == 0:
+                        # upload first chunk
+                        result = conn.files_upload_session_start(chunk)
+                        cursor.session_id = result.session_id
+                    elif end < len(data):
+                        # upload intermediate chunks
+                        conn.files_upload_session_append_v2(chunk, cursor)
+                    else:
+                        # upload the last chunk
+                        commit_info = dropbox.files.CommitInfo(path, mode, mute=True)
+                        conn.files_upload_session_finish(chunk, cursor, commit_info)
+                        done_uploading = True
+
+                    # advance cursor to next chunk
+                    cursor.offset = end
+
+                except dropbox.files.UploadSessionOffsetError as offset_error:
+                    self._trace('offset error writing %s, retrying' % sha)
+                    cursor.offset = offset_error.correct_offset
+                    if retries < MAX_RETRIES:
+                        retries += 1
+                    else:
+                        raise
+                except dropbox.exceptions.InternalServerError:
+                    self._trace('internal server error writing %s, retrying' % sha)
+                    if retries < MAX_RETRIES:
+                        retries += 1
+                    else:
+                        raise
+
 
     def _download(self, input_queue, output_queue):
         """
