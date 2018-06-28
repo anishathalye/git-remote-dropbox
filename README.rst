@@ -18,7 +18,7 @@ can run:
 
 .. code:: bash
 
-    git clone "dropbox:///path/to/repo"
+    git clone "dropbox:///path/to/repo" -b master
 
 To add a remote to an existing local repository, you can run:
 
