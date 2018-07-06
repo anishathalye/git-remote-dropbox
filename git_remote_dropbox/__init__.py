@@ -673,6 +673,8 @@ class Helper(object):
             return []
         files = [i for i in files if isinstance(i, dropbox.files.FileMetadata)]
         paths = [i.path_lower for i in files]
+        if not paths:
+            return []
         revs, data = zip(*self._get_files(paths))
         refs = []
         for path, rev, data in zip(paths, revs, data):
