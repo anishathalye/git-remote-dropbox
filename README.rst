@@ -156,7 +156,7 @@ Packaging
 
 1. Update version information.
 
-2. Build the package using ``python setup.py sdist bdist_wheel --universal``.
+2. Build the package using ``python setup.py sdist bdist_wheel``.
 
 3. Sign and upload the package using ``twine upload -s dist/*``.
 
