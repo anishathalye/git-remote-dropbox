@@ -66,7 +66,7 @@ setup(
     packages=['git_remote_dropbox'],
 
     install_requires=[
-        'dropbox>=8.5,<9',
+        'dropbox>=9,<10',
     ],
 
     # To provide executable scripts, use entry points in preference to the
