@@ -137,6 +137,13 @@ accessing your repository without using the helper is easy:
 5. Optionally, run ``git gc --aggressive`` to save disk space in your local
    repository.
 
+**How do I use git-remote-dropbox from behind a proxy server?**
+
+You can use git-remote-dropbox from behind a proxy server by setting the
+``HTTP_PROXY`` and ``HTTPS_PROXY`` environment variables. See `here
+<http://docs.python-requests.org/en/latest/user/advanced/#proxies>`__ for more
+details.
+
 Design
 ------
 
