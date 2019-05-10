@@ -792,7 +792,7 @@ def main():
             continue
         else:
             break
-    if not config:
+    if not config and not url.password:
         stderr('error: missing config file: %s\n' % config_files[0])
         exit(1)
     try:
