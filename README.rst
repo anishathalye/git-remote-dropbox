@@ -74,6 +74,23 @@ by specifying a URL like ``dropbox://username@/path/to/repo``.
 You can also specify the token inline by using a URL like
 ``dropbox://:token@/path/to/repo``.
 
+Repository Manager
+------------------
+
+In addition to the git remote helper, git-remote-dropbox comes with an
+additional tool to manage repositories on Dropbox. This tool can be invoked as
+``git-dropbox-manager``. You can also create an alias for it with the
+following:
+
+.. code:: bash
+
+    git config --global alias.dropbox '!git-dropbox-manage'
+
+With this configuration, the tool can be invoked as ``git dropbox``.
+
+Currently the tool supports a single subcommand, ``git dropbox set-head
+<remote> <branch>``, that can be used to set the default branch on the remote.
+
 Notes
 -----
 

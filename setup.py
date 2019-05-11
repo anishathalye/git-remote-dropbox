@@ -72,6 +72,7 @@ setup(
     entry_points={
         'console_scripts': [
             'git-remote-dropbox=git_remote_dropbox.cli.git_remote_dropbox:main',
+            'git-dropbox-manage=git_remote_dropbox.cli.git_dropbox_manage:main',
         ],
     },
 )

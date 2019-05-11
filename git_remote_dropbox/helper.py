@@ -119,13 +119,13 @@ class Helper(object):
         Handle the list command.
         """
         for_push = 'for-push' in line
-        refs = self._get_refs(for_push=for_push)
-        for ref in refs:
-            self._write(ref)
+        refs = self.get_refs(for_push=for_push)
+        for sha, ref in refs:
+            self._write('%s %s' % (sha, ref))
         if not for_push:
-            _, head = self._read_symbolic_ref('HEAD')
+            head = self.read_symbolic_ref('HEAD')
             if head:
-                self._write('@%s HEAD' % head)
+                self._write('@%s HEAD' % head[1])
             else:
                 self._trace('no default branch on remote', Level.INFO)
         self._write()
@@ -148,7 +148,7 @@ class Helper(object):
             if line == '':
                 if self._first_push:
                     self._first_push = False
-                    if not self._write_symbolic_ref('HEAD', remote_head):
+                    if not self.write_symbolic_ref('HEAD', remote_head):
                         self._trace('failed to set default branch on remote', Level.INFO)
                 break
         self._write()
@@ -170,8 +170,8 @@ class Helper(object):
         Delete the ref from the remote.
         """
         self._trace('deleting ref %s' % ref)
-        _, head = self._read_symbolic_ref('HEAD')
-        if ref == head:
+        head = self.read_symbolic_ref('HEAD')
+        if head and ref == head[1]:
             self._write('error %s refusing to delete the current branch: %s' % (ref, head))
             return
         try:
@@ -439,9 +439,11 @@ class Helper(object):
         else:
             return None
 
-    def _get_refs(self, for_push):
+    def get_refs(self, for_push):
         """
         Return the refs present on the remote.
+
+        Return a list of tuples of (sha, name).
         """
         try:
             loc = posixpath.join(self._path, 'refs')
@@ -470,10 +472,10 @@ class Helper(object):
             name = self._ref_name_from_path(path)
             sha = data.decode('utf8').strip()
             self._refs[name] = (rev, sha)
-            refs.append('%s %s' % (sha, name))
+            refs.append((sha, name))
         return refs
 
-    def _write_symbolic_ref(self, path, ref, rev=None):
+    def write_symbolic_ref(self, path, ref, rev=None):
         """
         Write the given symbolic ref to the remote.
 
@@ -500,7 +502,7 @@ class Helper(object):
             return False
         return True
 
-    def _read_symbolic_ref(self, path):
+    def read_symbolic_ref(self, path):
         """
         Return the revision number and content of a given symbolic ref on the remote.
 

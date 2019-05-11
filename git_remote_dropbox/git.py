@@ -158,3 +158,10 @@ def referenced_objects(sha):
         return [line.split()[2] for line in lines if not line.startswith('160000 commit ')]
     else:
         raise Exception('unexpected git object type: %s' % kind)
+
+
+def get_remote_url(name):
+    """
+    Return the URL of the given remote.
+    """
+    return command_output('remote', 'get-url', name)
