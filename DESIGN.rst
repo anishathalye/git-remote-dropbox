@@ -32,6 +32,15 @@ directory. For example, the ``master`` ref would be stored in
 ``refs/heads/master``, and the file would contain the SHA1 hash corresponding
 to the commit that the master branch points to.
 
+Symbolic References
+~~~~~~~~~~~~~~~~~~~
+
+Symbolic references are stored in the repository root. The format of the
+symbolic refs is identical to how Git stores symbolic refs in the ``.git``
+directory. For example, ``HEAD`` would be stored in ``HEAD``, and if it is
+pointing to ``refs/heads/master``, the file would contain ``ref:
+refs/heads/master``.
+
 Objects
 ~~~~~~~
 
@@ -88,6 +97,14 @@ write mode with a specific revision number.
 
 If we're doing a force push, the process is simpler - we can just overwrite the
 ref with the new value.
+
+If we're deleting a branch, we make sure that we're not deleting the default
+branch before deleting the ref.
+
+Symbolic refs
+~~~~~~~~~~~~~
+
+The symbolic ref ``HEAD`` is set upon repository creation.
 
 Fetch
 -----

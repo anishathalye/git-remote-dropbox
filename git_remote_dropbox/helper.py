@@ -33,6 +33,7 @@ class Helper(object):
         self._verbosity = Level.INFO  # default verbosity
         self._refs = {}  # map from remote ref name => (rev number, sha)
         self._pushed = {}  # map from remote ref name => sha
+        self._first_push = False
 
     @property
     def verbosity(self):
@@ -121,20 +122,34 @@ class Helper(object):
         refs = self._get_refs(for_push=for_push)
         for ref in refs:
             self._write(ref)
+        if not for_push:
+            _, head = self._read_symbolic_ref('HEAD')
+            if head:
+                self._write('@%s HEAD' % head)
+            else:
+                self._trace('no default branch on remote', Level.INFO)
         self._write()
 
     def _do_push(self, line):
         """
         Handle the push command.
         """
+        remote_head = None
         while True:
             src, dst = line.split(' ')[1].split(':')
             if src == '':
                 self._delete(dst)
             else:
                 self._push(src, dst)
+                if self._first_push:
+                    if not remote_head or src == git.symbolic_ref('HEAD'):
+                        remote_head = dst
             line = readline()
             if line == '':
+                if self._first_push:
+                    self._first_push = False
+                    if not self._write_symbolic_ref('HEAD', remote_head):
+                        self._trace('failed to set default branch on remote', Level.INFO)
                 break
         self._write()
 
@@ -155,6 +170,10 @@ class Helper(object):
         Delete the ref from the remote.
         """
         self._trace('deleting ref %s' % ref)
+        _, head = self._read_symbolic_ref('HEAD')
+        if ref == head:
+            self._write('error %s refusing to delete the current branch: %s' % (ref, head))
+            return
         try:
             self._connection().files_delete(self._ref_path(ref))
         except dropbox.exceptions.ApiError as e:
@@ -375,8 +394,9 @@ class Helper(object):
                 pct = int(float(done) / total * 100)
                 message = '\rReceiving objects: {:3.0f}% ({}/{})'.format(pct, done, total)
                 self._trace(message, level=Level.INFO, exact=True)
-        self._trace('\rReceiving objects: 100% ({}/{}), done.\n'.format(done, total),
-                    level=Level.INFO, exact=True)
+        if total:
+            self._trace('\rReceiving objects: 100% ({}/{}), done.\n'.format(done, total),
+                        level=Level.INFO, exact=True)
         for proc in procs:
             input_queue.put(Poison())
         for proc in procs:
@@ -437,6 +457,8 @@ class Helper(object):
                 # if we're pushing, it's okay if nothing exists beforehand,
                 # but it's good to notify the user just in case
                 self._trace('repository is empty', Level.INFO)
+            else:
+                self._first_push = True
             return []
         files = [i for i in files if isinstance(i, dropbox.files.FileMetadata)]
         paths = [i.path_lower for i in files]
@@ -450,3 +472,49 @@ class Helper(object):
             self._refs[name] = (rev, sha)
             refs.append('%s %s' % (sha, name))
         return refs
+
+    def _write_symbolic_ref(self, path, ref, rev=None):
+        """
+        Write the given symbolic ref to the remote.
+
+        Perform a compare-and-swap (using previous revision rev) if specified,
+        otherwise perform a regular write.
+
+        Return a boolean indicating whether the write was successful.
+        """
+        path = posixpath.join(self._path, path)
+        if rev:
+            # atomic compare-and-swap
+            mode = dropbox.files.WriteMode.update(rev)
+        else:
+            # atomic add
+            mode = dropbox.files.WriteMode('add')
+        data = ('ref: %s\n' % ref).encode('utf8')
+        self._trace('writing symbolic ref %s with mode %s' % (path, mode))
+        try:
+            self._connection().files_upload(data, path, mode, mute=True)
+            return True
+        except dropbox.exceptions.ApiError as e:
+            if not isinstance(e.error, dropbox.files.UploadError):
+                raise
+            return False
+        return True
+
+    def _read_symbolic_ref(self, path):
+        """
+        Return the revision number and content of a given symbolic ref on the remote.
+
+        Return a tuple (revision, content), or None if the symbolic ref does not exist.
+        """
+        path = posixpath.join(self._path, path)
+        self._trace('fetching symbolic ref: %s' % path)
+        try:
+            meta, resp = self._connection().files_download(path)
+            ref = resp.content.decode('utf8')
+            ref = ref[len('ref: '):].rstrip()
+            rev = meta.rev
+            return (rev, ref)
+        except dropbox.exceptions.ApiError as e:
+            if not isinstance(e.error, dropbox.files.DownloadError):
+                raise
+            return None

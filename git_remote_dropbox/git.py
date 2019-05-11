@@ -56,6 +56,13 @@ def ref_value(ref):
     return command_output('rev-parse', ref)
 
 
+def symbolic_ref_value(name):
+    """
+    Return the branch head to which the symbolic ref refers.
+    """
+    return command_output('symbolic-ref', name)
+
+
 def object_kind(sha):
     """
     Return the type of the object.
