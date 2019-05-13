@@ -1,0 +1,22 @@
+Vagrant.configure(2) do |config|
+
+  config.vm.box = 'ubuntu/xenial64'
+
+  # synced folder
+  config.vm.synced_folder '..', '/git-remote-dropbox'
+
+  # disable default synced folder
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+  # install packages
+  config.vm.provision 'shell', inline: <<-EOS
+    apt-get -y update
+    apt-get install -y git python-pip
+  EOS
+
+  # configure PATH
+  config.vm.provision 'shell', inline: <<-EOS
+    echo 'PATH=$HOME/.local/bin:$PATH' > /etc/profile.d/path.sh
+  EOS
+
+end
