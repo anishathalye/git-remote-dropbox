@@ -36,7 +36,8 @@ concurrent operations, even when using a shared folder.
 Setup
 -----
 
-1. Install the helper with ``pip install git-remote-dropbox``.
+1. Install the helper with ``pip install git-remote-dropbox``. Make sure the
+   ``git-remote-dropbox`` executable is on your ``$PATH``.
 
 2. Generate an OAuth 2 token by going to the `app console
    <https://www.dropbox.com/developers/apps>`__, creating a Dropbox API app
