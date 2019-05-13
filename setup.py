@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from codecs import open # For a consistent encoding
 from os import path
 import re
@@ -63,7 +63,7 @@ setup(
 
     keywords='git dropbox',
 
-    packages=['git_remote_dropbox'],
+    packages=find_packages(),
 
     install_requires=[
         'dropbox>=9,<10',
@@ -71,8 +71,8 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'git-remote-dropbox=git_remote_dropbox.cli.git_remote_dropbox:main',
-            'git-dropbox-manage=git_remote_dropbox.cli.git_dropbox_manage:main',
+            'git-remote-dropbox=git_remote_dropbox.cli.helper:main',
+            'git-dropbox-manage=git_remote_dropbox.cli.manage:main',
         ],
     },
 )
