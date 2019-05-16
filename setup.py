@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from codecs import open # For a consistent encoding
 from os import path
 import re
@@ -63,18 +63,16 @@ setup(
 
     keywords='git dropbox',
 
-    packages=['git_remote_dropbox'],
+    packages=find_packages(),
 
     install_requires=[
         'dropbox>=9,<10',
     ],
 
-    # To provide executable scripts, use entry points in preference to the
-    # "scripts" keyword. Entry points provide cross-platform support and allow
-    # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'git-remote-dropbox=git_remote_dropbox:main',
+            'git-remote-dropbox=git_remote_dropbox.cli.helper:main',
+            'git-dropbox-manage=git_remote_dropbox.cli.manage:main',
         ],
     },
 )
