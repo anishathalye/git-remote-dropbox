@@ -16,6 +16,15 @@ import git_remote_dropbox.git as git
 import dropbox
 
 import multiprocessing
+try:
+    # Importing synchronize is to detect platforms where
+    # multiprocessing does not work (python issue 3770)
+    # and cause an ImportError. Otherwise it will happen
+    # later when trying to use Queue().
+    from multiprocessing import synchronize, Queue
+except ImportError:
+    from queue import Queue
+
 import multiprocessing.dummy
 import multiprocessing.pool
 import posixpath
@@ -350,8 +359,8 @@ class Helper(object):
         queue = [sha]
         pending = set()
         downloaded = set()
-        input_queue = multiprocessing.Queue()  # requesting downloads
-        output_queue = multiprocessing.Queue()  # completed downloads
+        input_queue = Queue()  # requesting downloads
+        output_queue = Queue()  # completed downloads
         procs = []
         for _ in range(self._processes):
             target = Binder(self, '_download')
