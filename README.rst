@@ -4,8 +4,8 @@ git-remote-dropbox
 git-remote-dropbox is a transparent bidirectional bridge between Git and
 Dropbox. It lets you use a Dropbox folder or a shared folder as a Git remote!
 
-.. image:: https://travis-ci.org/anishathalye/git-remote-dropbox.svg?branch=master
-   :target: https://travis-ci.org/anishathalye/git-remote-dropbox
+.. image:: https://travis-ci.com/anishathalye/git-remote-dropbox.svg?branch=master
+   :target: https://travis-ci.com/anishathalye/git-remote-dropbox
 
 ----
 
