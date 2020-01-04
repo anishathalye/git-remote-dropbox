@@ -33,7 +33,7 @@ is to find and fix the bug.
 
 Want to hack on git-remote-dropbox? Awesome!
 
-You may find the documentation in [DESIGN.rst][design] and the source code
+You may find the documentation in [DESIGN.md][design] and the source code
 helpful.
 
 If there are [open issues][issues], you're more than welcome to work on those -
@@ -54,7 +54,7 @@ formatted][commit-messages].
 
 If you have any questions about anything, feel free to [ask][email]!
 
-[design]: DESIGN.rst
+[design]: DESIGN.md
 [issue]: https://github.com/anishathalye/git-remote-dropbox/issues/new
 [issues]: https://github.com/anishathalye/git-remote-dropbox/issues
 [fork]: https://github.com/anishathalye/git-remote-dropbox/fork
