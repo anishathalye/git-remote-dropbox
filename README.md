@@ -170,5 +170,5 @@ information on what you can do about that.
 
 ## License
 
-Copyright (c) 2015-2019 Anish Athalye. Released under the MIT License. See
+Copyright (c) 2015-2020 Anish Athalye. Released under the MIT License. See
 [LICENSE.md](LICENSE.md) for details.
