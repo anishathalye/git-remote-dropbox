@@ -79,7 +79,7 @@ You can also specify the token inline by using a URL like
 
 In addition to the git remote helper, git-remote-dropbox comes with an
 additional tool to manage repositories on Dropbox. This tool can be invoked as
-`git-dropbox-manager`. You can also create an alias for it with the following:
+`git-dropbox-manage`. You can also create an alias for it with the following:
 
 ```bash
 git config --global alias.dropbox '!git-dropbox-manage'
@@ -103,8 +103,10 @@ Currently the tool supports a single subcommand, `git dropbox set-head <remote>
 - The remote helper does not support shallow cloning.
 - Cloning a repository or fetching a lot of objects produces lots of loose
   objects. To save space in the local repository, run `git gc --aggressive`.
-- After cloning a repository from Dropbox, Git will not automatically check out
-  a branch. To check out a branch, run `git checkout <branch>`.
+- If the remote HEAD (default branch on the remote) is not set, after cloning a
+  repository from Dropbox, Git will not automatically check out a branch. To
+  check out a branch, run `git checkout <branch>`. To set the default branch on
+  the remote, use the [git-dropbox-manage](#repository-manager) command.
 
 ## FAQ
 
