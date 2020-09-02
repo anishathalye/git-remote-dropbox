@@ -4,6 +4,9 @@ import subprocess
 import zlib
 
 
+EMPTY_TREE_HASH = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+
+
 def command_output(*args, **kwargs):
     """
     Return the result of running a git command.
@@ -38,7 +41,7 @@ def object_exists(sha):
     """
     Return whether the object exists in the repository.
     """
-    return command_ok('cat-file', '-t', sha)
+    return command_ok('cat-file', '-e', sha)
 
 
 def history_exists(sha):
@@ -107,7 +110,11 @@ def decode_object(data):
     decompressed = zlib.decompress(data)
     header, contents = decompressed.split(b'\0', 1)
     kind = header.split()[0]
-    p = subprocess.Popen(['git', 'hash-object', '-w', '--stdin', '-t', kind.decode('utf8')],
+    return write_object(kind.decode('utf8'), contents)
+
+
+def write_object(kind, contents):
+    p = subprocess.Popen(['git', 'hash-object', '-w', '--stdin', '-t', kind],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=DEVNULL)
     sha = p.communicate(contents)[0].decode('utf8').strip()
@@ -152,6 +159,9 @@ def referenced_objects(sha):
         return objs
     elif kind == 'tree':
         # tree objects reference zero or more trees and blobs, or submodules
+        if not data:
+            # empty tree
+            return []
         lines = data.split('\n')
         # submodules have the mode '160000' and the kind 'commit', we filter them out because
         # there is nothing to download and this causes errors

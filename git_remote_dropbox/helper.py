@@ -379,6 +379,13 @@ class Helper(object):
                 if sha in downloaded or sha in pending:
                     continue
                 if git.object_exists(sha):
+                    if sha == git.EMPTY_TREE_HASH:
+                        # git.object_exists() returns True for the empty
+                        # tree hash even if it's not present in the object
+                        # store. Everything will work fine in this situation,
+                        # but `git fsck` will complain if it's not present, so
+                        # we explicitly add it to avoid that.
+                        git.write_object('tree', b'')
                     if not git.history_exists(sha):
                         # this can only happen in the case of aborted fetches
                         # that are resumed later
