@@ -1,3 +1,4 @@
+import git_remote_dropbox
 import git_remote_dropbox.git as git
 from git_remote_dropbox.cli.common import (
     error,
@@ -20,11 +21,14 @@ def main():
     parser_set_head = subparsers.add_parser('set-head', help='set the default branch on the remote')
     parser_set_head.add_argument('remote', type=str, help='name of the remote')
     parser_set_head.add_argument('branch', type=str, help='name of the branch on the remote')
+    parser_set_head = subparsers.add_parser('version', help='print the version of git-remote-dropbox')
 
     args = parser.parse_args()
 
     if args.command == 'set-head':
         set_head(args.remote, args.branch)
+    elif args.command == 'version':
+        version()
 
 
 def set_head(remote, branch):
@@ -71,3 +75,7 @@ def set_head(remote, branch):
         # it happens
         error('remote ref \'%s\' was concurrently deleted: remote HEAD needs to be fixed (try again)')
     print('Updated remote HEAD to \'%s\'.' % remote_ref)
+
+
+def version():
+    print('git-remote-dropbox %s' % git_remote_dropbox.__version__)
