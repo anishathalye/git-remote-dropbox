@@ -67,7 +67,7 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        'dropbox>=10,<11',
+        'dropbox>=11,<12',
     ],
 
     entry_points={
