@@ -19,8 +19,8 @@ info() {
 
 check_env() {
     if [[ "$(whoami)" != vagrant ]]; then
-        if [[ "${TRAVIS}" != true || "${CI}" != true ]]; then
-            echo "error: `basename "$0"` should only be used in a Vagrant VM or in Travis"
+        if [[ "${CI}" != true ]]; then
+            echo "error: `basename "$0"` should only be used in a Vagrant VM or in CI"
             exit 2
         fi
     fi
