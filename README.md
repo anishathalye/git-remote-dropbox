@@ -164,12 +164,6 @@ Do you have ideas on how to improve git-remote-dropbox? Have a feature request,
 bug report, or patch? Great! See [CONTRIBUTING.md](CONTRIBUTING.md) for
 information on what you can do about that.
 
-## Packaging
-
-1. Update version information.
-2. Build the package using `python setup.py sdist bdist_wheel`.
-3. Sign and upload the package using `twine upload -s dist/*`.
-
 ## License
 
 Copyright (c) 2015-2020 Anish Athalye. Released under the MIT License. See
