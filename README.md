@@ -40,39 +40,40 @@ concurrent operations, even when using a shared folder.
 
 1. Go to the Dropbox [app console](https://www.dropbox.com/developers/apps) (may require login).
 
-2. Click "Create App".
+2. Click "Create app".
 
-3. Select "Scoped Access" (you don't have a choice).
+3. Select "Scoped access" (you don't have a choice).
 
-4. Select "Full Access".
+4. Select "Full Dropbox".
 
-5. Name your app (e.g. "git-remote-dropbox"; it doesn't matter what name you choose).
+5. Name your app (e.g. "Git Remote"; you need a unique name, but it doesn't matter what name you choose).
 
-6. Click "Create App".  You will now see a configuration page.
+6. Click "Create app". You will now see a configuration page. Make sure you are on the "Settings" tab.
 
-7. On the "Settings" tab, click "Generated access token". You will now see an access token.  Copy this somewhere. Note that it is longer than the display so exercise care in copying _all_ of it.
+7. Scroll down to the "OAuth 2" section, and change the "Access token expiration" to "No expiration".
 
-8. On the "Permissions" tab, under "Files and folders" select `files.metadata.write` (which also selects `files.metadata.read`), `files.content.read`, and `files.content.write`. Click "Submit" at the bottom.
+8. On the "Permissions" tab, under "Files and folders" select `files.metadata.write` (which also selects `files.metadata.read`), `files.content.write`, and `files.content.read`. Click "Submit" at the bottom. (You must make sure to do this _before_ the next step, because changing permissions does not affect existing access tokens.)
+
+9. Back on the "Settings" tab, click "Generate" under the "Generated access token" heading. Copy the generated token token. Note that it is longer than the display, so exercise care in copying _all_ of it. Save the token in either `~/.config/git/git-remote-dropbox.json` or `~/.git-remote-dropbox.json`. The file looks like:
+   ```json
+   {
+      "default": "xxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+   ```
 
 ### B. Local software installation
 
 1. Prerequisites:
    1. `python` and matching `pip`
    2. `git`
-2. Install this package with `pip install git-remote-dropbox`.  Use `which git-remote-dropbox` to make sure it's available via `$PATH`. If not, edit `$PATH` appropriately.
-3. Save the token you generated (and copied) above in either `~/.config/git/git-remote-dropbox.json` or `~/.git-remote-dropbox.json`. The file looks like:
-   ```json
-   {
-      "default": "the-token-you-copied-above"
-   }
-   ```
-4. Add an alias for the manager tool with `git config --global alias.dropbox '!git-dropbox-manage'`.
+2. Install this package with `pip install git-remote-dropbox`. Use `which git-remote-dropbox` to make sure it's available via `$PATH`. If not, edit `$PATH` appropriately.
+3. Add an alias for the manager tool with `git config --global alias.dropbox '!git-dropbox-manage'`.
 
 ### __Note about access tokens__
 
-1. The access token you have will now enable access to your entire Dropbox, from any machine. It is valid until you either delete the app or click on "Generated access token" again. Keep this token a secret. In particular, you should **NOT** share this for making a shared repo (see [Sharing](#sharing) below for the right way to do that).
+1. The access token you have will now enable access to your entire Dropbox, from any machine. It is valid until you either delete the app or regenerate the access token. Keep this token a secret. In particular, you should **NOT** share this for making a shared repo (see [Sharing](#sharing) below for the right way to do that).
 
-2. If you have multiple Dropbox accounts, this token will access only the one that was logged in when you created the Dropbox app.  You can specify alternate ones in the config file and reference them via the pathname (see [Multiple Accounts](#multiple-accounts) below).
+2. If you have multiple Dropbox accounts, this token will access only the one that was logged in when you created the Dropbox app. You can specify alternate ones in the config file and reference them via the pathname (see [Multiple Accounts](#multiple-accounts) below).
 
 ## Sharing
 
