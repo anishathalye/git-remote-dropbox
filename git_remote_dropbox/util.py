@@ -30,8 +30,9 @@ def stdout_to_binary():
     """
     Ensure that stdout is in binary mode on windows
     """
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         import msvcrt
+
         msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 

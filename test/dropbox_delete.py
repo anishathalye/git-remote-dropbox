@@ -7,7 +7,7 @@ import os
 
 
 def main(path):
-    token = os.environ['DROPBOX_TOKEN']
+    token = os.environ["DROPBOX_TOKEN"]
     connection = dropbox.Dropbox(token)
     try:
         connection.files_delete(path)
@@ -17,5 +17,5 @@ def main(path):
         # folder is missing? ignore
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv[1])

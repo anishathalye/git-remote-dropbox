@@ -16,18 +16,20 @@ def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
     subparsers.required = True
-    subparsers.dest = 'command'
+    subparsers.dest = "command"
 
-    parser_set_head = subparsers.add_parser('set-head', help='set the default branch on the remote')
-    parser_set_head.add_argument('remote', type=str, help='name of the remote')
-    parser_set_head.add_argument('branch', type=str, help='name of the branch on the remote')
-    parser_set_head = subparsers.add_parser('version', help='print the version of git-remote-dropbox')
+    parser_set_head = subparsers.add_parser("set-head", help="set the default branch on the remote")
+    parser_set_head.add_argument("remote", type=str, help="name of the remote")
+    parser_set_head.add_argument("branch", type=str, help="name of the branch on the remote")
+    parser_set_head = subparsers.add_parser(
+        "version", help="print the version of git-remote-dropbox"
+    )
 
     args = parser.parse_args()
 
-    if args.command == 'set-head':
+    if args.command == "set-head":
         set_head(args.remote, args.branch)
-    elif args.command == 'version':
+    elif args.command == "version":
         version()
 
 
@@ -44,11 +46,11 @@ def set_head(remote, branch):
     try:
         url = git.get_remote_url(remote)
     except subprocess.CalledProcessError:
-        error('no such remote \'%s\'' % remote)
+        error("no such remote '%s'" % remote)
         exit(1)
     helper = get_helper(url)
 
-    remote_ref = 'refs/heads/%s' % branch
+    remote_ref = "refs/heads/%s" % branch
 
     def branch_exists():
         refs = helper.get_refs(False)
@@ -59,23 +61,23 @@ def set_head(remote, branch):
 
     # check if target branch exists
     if not branch_exists():
-        error('remote has no such ref \'%s\'' % remote_ref)
+        error("remote has no such ref '%s'" % remote_ref)
     # get current head
-    old_head = helper.read_symbolic_ref('HEAD')
+    old_head = helper.read_symbolic_ref("HEAD")
     if old_head and old_head[1] == remote_ref:
-        error('remote HEAD is already \'%s\'' % remote_ref)
+        error("remote HEAD is already '%s'" % remote_ref)
     rev = old_head[0] if old_head else None
     # write new head
-    ok = helper.write_symbolic_ref('HEAD', remote_ref, rev=rev)
+    ok = helper.write_symbolic_ref("HEAD", remote_ref, rev=rev)
     if not ok:
-        error('concurrent modification of remote HEAD detected (try again)')
+        error("concurrent modification of remote HEAD detected (try again)")
     # ensure that target branch still exists
     if not branch_exists():
         # this should be a really rare occurrence: have the user fix it up if
         # it happens
-        error('remote ref \'%s\' was concurrently deleted: remote HEAD needs to be fixed (try again)')
-    print('Updated remote HEAD to \'%s\'.' % remote_ref)
+        error("remote ref '%s' was concurrently deleted: remote HEAD needs to be fixed (try again)")
+    print("Updated remote HEAD to '%s'." % remote_ref)
 
 
 def version():
-    print('git-remote-dropbox %s' % git_remote_dropbox.__version__)
+    print("git-remote-dropbox %s" % git_remote_dropbox.__version__)

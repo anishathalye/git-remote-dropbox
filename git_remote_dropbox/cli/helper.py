@@ -25,7 +25,7 @@ def main():
         if helper.verbosity >= Level.DEBUG:
             raise  # re-raise exception so it prints out a stack trace
         else:
-            error('unexpected exception (run with -v for details)')
+            error("unexpected exception (run with -v for details)")
     except KeyboardInterrupt:
         # exit silently with an error code
         exit(1)

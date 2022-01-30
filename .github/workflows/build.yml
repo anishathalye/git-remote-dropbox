@@ -4,13 +4,13 @@ on:
   schedule:
     - cron: '0 8 * * 6'
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     environment: main
     strategy:
       matrix:
         python: [2.7, pypy2, 3.5, 3.6, 3.7, 3.8, 3.9, pypy3]
-    name: Python ${{ matrix.python }}
+    name: "Test: Python ${{ matrix.python }}"
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -22,3 +22,9 @@ jobs:
       - run: ./test/test.sh
         env:
           DROPBOX_TOKEN: ${{ secrets.DROPBOX_TOKEN }}
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
