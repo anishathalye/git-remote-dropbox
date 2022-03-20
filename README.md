@@ -67,7 +67,6 @@ concurrent operations, even when using a shared folder.
    1. `python` and matching `pip`
    2. `git`
 2. Install this package with `pip install git-remote-dropbox`. Use `which git-remote-dropbox` to make sure it's available via `$PATH`. If not, edit `$PATH` appropriately.
-3. Add an alias for the manager tool with `git config --global alias.dropbox '!git-dropbox-manage'`.
 
 ### __Note about access tokens__
 
@@ -105,13 +104,7 @@ You can also specify the token inline by using a URL like
 
 In addition to the git remote helper, `git-remote-dropbox` comes with an
 additional tool to manage repositories on Dropbox. This tool can be invoked as
-`git-dropbox-manage`. You can also create an alias for it with the following:
-
-```bash
-git config --global alias.dropbox '!git-dropbox-manage'
-```
-
-With this configuration, the tool can be invoked as `git dropbox`.
+`git dropbox`. You can also create an alias for it with the following:
 
 Currently the tool supports a single subcommand, `git dropbox set-head <remote>
 <branch>`, that can be used to set the default branch on the remote.
@@ -136,7 +129,7 @@ Currently the tool supports a single subcommand, `git dropbox set-head <remote>
 - If the remote HEAD (default branch on the remote) is not set, after cloning a
   repository from Dropbox, Git will not automatically check out a branch. To
   check out a branch, run `git checkout <branch>`. To set the default branch on
-  the remote, use the [git-dropbox-manage](#repository-manager) command.
+  the remote, use the [`git dropbox`](#repository-manager) command.
 
 ## FAQ
 

@@ -56,6 +56,9 @@ setup(
     entry_points={
         "console_scripts": [
             "git-remote-dropbox=git_remote_dropbox.cli.helper:main",
+            "git-dropbox=git_remote_dropbox.cli.manage:main",
+            # Users might have a `git dropbox` alias set up for `git-dropbox-manage`.
+            # Don't break their config.
             "git-dropbox-manage=git_remote_dropbox.cli.manage:main",
         ],
     },

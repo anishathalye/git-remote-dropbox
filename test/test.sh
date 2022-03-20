@@ -76,7 +76,7 @@ fi
 ok
 
 section 'set default branch'
-test_expect_success git-dropbox-manage set-head origin develop
+test_expect_success git-dropbox set-head origin develop
 ok
 
 section 'default branch protected'

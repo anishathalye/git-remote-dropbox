@@ -11,7 +11,7 @@ import subprocess
 
 def main():
     """
-    Main entry point for git-dropbox-manage program.
+    Main entry point for git-dropbox program.
     """
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
