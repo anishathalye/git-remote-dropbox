@@ -13,43 +13,47 @@ from git_remote_dropbox.util import (
 )
 import git_remote_dropbox.git as git
 
-import dropbox
+import dropbox  # type: ignore
 
 import multiprocessing
+from typing import Callable, Optional, NoReturn, Tuple, Dict, List, Set
 
 try:
     # Importing synchronize is to detect platforms where
     # multiprocessing does not work (python issue 3770)
     # and cause an ImportError. Otherwise it will happen
     # later when trying to use Queue().
-    from multiprocessing import synchronize, Queue
+    from multiprocessing import synchronize
+    from multiprocessing import Queue  # type: ignore
 except ImportError:
-    from queue import Queue
+    from queue import Queue  # type: ignore
 
 import multiprocessing.dummy
 import multiprocessing.pool
 import posixpath
 
 
-class Helper(object):
+class Helper:
     """
     A git remote helper to communicate with Dropbox.
     """
 
-    def __init__(self, token, path, processes=PROCESSES):
-        self._token = token
+    def __init__(
+        self, connector: Callable[[], dropbox.Dropbox], path: str, processes: int = PROCESSES
+    ):
+        self._connector = connector
         self._path = path
         self._processes = processes
         self._verbosity = Level.INFO  # default verbosity
-        self._refs = {}  # map from remote ref name => (rev number, sha)
-        self._pushed = {}  # map from remote ref name => sha
+        self._refs: Dict[str, Tuple[str, str]] = {}  # map from remote ref name => (rev number, sha)
+        self._pushed: Dict[str, str] = {}  # map from remote ref name => sha
         self._first_push = False
 
     @property
-    def verbosity(self):
+    def verbosity(self) -> int:
         return self._verbosity
 
-    def _write(self, message=None):
+    def _write(self, message: Optional[str] = None) -> None:
         """
         Write a message to standard output.
         """
@@ -58,7 +62,7 @@ class Helper(object):
         else:
             stdout("\n")
 
-    def _trace(self, message, level=Level.DEBUG, exact=False):
+    def _trace(self, message: str, level: int = Level.DEBUG, exact: bool = False) -> None:
         """
         Log a message with a given severity level.
         """
@@ -75,22 +79,22 @@ class Helper(object):
         elif level >= Level.DEBUG:
             stderr("debug: %s\n" % message)
 
-    def _fatal(self, message):
+    def _fatal(self, message: str) -> NoReturn:
         """
         Log a fatal error and exit.
         """
         self._trace(message, Level.ERROR)
         exit(1)
 
-    def _connection(self):
+    def _connection(self) -> dropbox.Dropbox:
         """
         Return a Dropbox connection object.
         """
         # we use fresh connection objects for every use so that multiple
         # threads can have connections simultaneously
-        return dropbox.Dropbox(self._token)
+        return self._connector()
 
-    def run(self):
+    def run(self) -> None:
         """
         Run the helper following the git remote helper communication protocol.
         """
@@ -114,7 +118,7 @@ class Helper(object):
             else:
                 self._fatal("unsupported operation: %s" % line)
 
-    def _do_option(self, line):
+    def _do_option(self, line: str) -> None:
         """
         Handle the option command.
         """
@@ -124,7 +128,7 @@ class Helper(object):
         else:
             self._write("unsupported")
 
-    def _do_list(self, line):
+    def _do_list(self, line: str) -> None:
         """
         Handle the list command.
         """
@@ -140,7 +144,7 @@ class Helper(object):
                 self._trace("no default branch on remote", Level.INFO)
         self._write()
 
-    def _do_push(self, line):
+    def _do_push(self, line: str) -> None:
         """
         Handle the push command.
         """
@@ -158,12 +162,15 @@ class Helper(object):
             if line == "":
                 if self._first_push:
                     self._first_push = False
-                    if not self.write_symbolic_ref("HEAD", remote_head):
-                        self._trace("failed to set default branch on remote", Level.INFO)
+                    if remote_head:
+                        if not self.write_symbolic_ref("HEAD", remote_head):
+                            self._trace("failed to set default branch on remote", Level.INFO)
+                    else:
+                        self._trace("first push but no branch to set remote HEAD")
                 break
         self._write()
 
-    def _do_fetch(self, line):
+    def _do_fetch(self, line: str) -> None:
         """
         Handle the fetch command.
         """
@@ -175,7 +182,7 @@ class Helper(object):
                 break
         self._write()
 
-    def _delete(self, ref):
+    def _delete(self, ref: str) -> None:
         """
         Delete the ref from the remote.
         """
@@ -194,7 +201,7 @@ class Helper(object):
         self._pushed.pop(ref, None)  # discard
         self._write("ok %s" % ref)
 
-    def _push(self, src, dst):
+    def _push(self, src: str, dst: str) -> None:
         """
         Push src to dst on the remote.
         """
@@ -232,14 +239,14 @@ class Helper(object):
         else:
             self._write("error %s %s" % (dst, error))
 
-    def _ref_path(self, name):
+    def _ref_path(self, name: str) -> str:
         """
         Return the path to the given ref on the remote.
         """
         assert name.startswith("refs/")
         return posixpath.join(self._path, name)
 
-    def _ref_name_from_path(self, path):
+    def _ref_name_from_path(self, path: str) -> str:
         """
         Return the ref name given the full path of the remote ref.
         """
@@ -247,7 +254,7 @@ class Helper(object):
         assert path.startswith(prefix)
         return path[len(prefix) :]
 
-    def _object_path(self, name):
+    def _object_path(self, name: str) -> str:
         """
         Return the path to the given object on the remote.
         """
@@ -255,7 +262,7 @@ class Helper(object):
         suffix = name[2:]
         return posixpath.join(self._path, "objects", prefix, suffix)
 
-    def _get_file(self, path):
+    def _get_file(self, path: str) -> Tuple[str, bytes]:
         """
         Return the revision number and content of a given file on the remote.
 
@@ -265,14 +272,14 @@ class Helper(object):
         meta, resp = self._connection().files_download(path)
         return (meta.rev, resp.content)
 
-    def _get_files(self, paths):
+    def _get_files(self, paths: List[str]) -> List[Tuple[str, bytes]]:
         """
         Return a list of (revision number, content) for a given list of files.
         """
         pool = multiprocessing.dummy.Pool(self._processes)
         return pool.map(self._get_file, paths)
 
-    def _put_object(self, sha):
+    def _put_object(self, sha: str) -> None:
         """
         Upload an object to the remote.
         """
@@ -334,7 +341,7 @@ class Helper(object):
                     else:
                         raise
 
-    def _download(self, input_queue, output_queue):
+    def _download(self, input_queue: Queue, output_queue: Queue) -> None:
         """
         Download files given in input_queue and push results to output_queue.
         """
@@ -351,16 +358,16 @@ class Helper(object):
             except Exception as e:
                 output_queue.put(Poison("exception while downloading: %s" % e))
 
-    def _fetch(self, sha):
+    def _fetch(self, sha: str) -> None:
         """
         Recursively fetch the given object and the objects it references.
         """
         # have multiple threads downloading in parallel
         queue = [sha]
-        pending = set()
-        downloaded = set()
-        input_queue = Queue()  # requesting downloads
-        output_queue = Queue()  # completed downloads
+        pending: Set[str] = set()
+        downloaded: Set[str] = set()
+        input_queue: Queue = Queue()  # requesting downloads
+        output_queue: Queue = Queue()  # completed downloads
         procs = []
         for _ in range(self._processes):
             target = Binder(self, "_download")
@@ -400,6 +407,8 @@ class Helper(object):
                 # process completed download
                 res = output_queue.get()
                 if isinstance(res, Poison):
+                    # _download never puts Poison with an empty message in the output_queue
+                    assert res.message is not None
                     self._fatal(res.message)
                 pending.remove(res)
                 downloaded.add(res)
@@ -421,7 +430,7 @@ class Helper(object):
         for proc in procs:
             proc.join()
 
-    def _write_ref(self, new_sha, dst, force=False):
+    def _write_ref(self, new_sha: str, dst: str, force: bool = False) -> Optional[str]:
         """
         Atomically update the given reference to point to the given object.
 
@@ -458,7 +467,7 @@ class Helper(object):
         else:
             return None
 
-    def get_refs(self, for_push):
+    def get_refs(self, for_push: bool) -> List[Tuple[str, str]]:
         """
         Return the refs present on the remote.
 
@@ -485,16 +494,20 @@ class Helper(object):
         paths = [i.path_lower for i in files]
         if not paths:
             return []
-        revs, data = zip(*self._get_files(paths))
+        revs: List[str] = []
+        data: List[bytes] = []
+        for rev, datum in self._get_files(paths):
+            revs.append(rev)
+            data.append(datum)
         refs = []
-        for path, rev, data in zip(paths, revs, data):
+        for path, rev, datum in zip(paths, revs, data):
             name = self._ref_name_from_path(path)
-            sha = data.decode("utf8").strip()
+            sha = datum.decode("utf8").strip()
             self._refs[name] = (rev, sha)
             refs.append((sha, name))
         return refs
 
-    def write_symbolic_ref(self, path, ref, rev=None):
+    def write_symbolic_ref(self, path: str, ref: str, rev: Optional[str] = None):
         """
         Write the given symbolic ref to the remote.
 
@@ -521,7 +534,7 @@ class Helper(object):
             return False
         return True
 
-    def read_symbolic_ref(self, path):
+    def read_symbolic_ref(self, path: str) -> Optional[Tuple[str, str]]:
         """
         Return the revision number and content of a given symbolic ref on the remote.
 

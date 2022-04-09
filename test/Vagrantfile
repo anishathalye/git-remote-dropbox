@@ -1,6 +1,6 @@
 Vagrant.configure(2) do |config|
 
-  config.vm.box = 'ubuntu/xenial64'
+  config.vm.box = 'ubuntu/bionic64'
 
   # synced folder
   config.vm.synced_folder '..', '/git-remote-dropbox'
@@ -11,7 +11,12 @@ Vagrant.configure(2) do |config|
   # install packages
   config.vm.provision 'shell', inline: <<-EOS
     apt-get -y update
-    apt-get install -y git python-pip
+    apt-get install -y git python3-pip
+  EOS
+
+  # alias python -> python3
+  config.vm.provision 'shell', inline: <<-EOS
+    sudo ln -s /usr/bin/python3 /usr/bin/python
   EOS
 
   # configure PATH

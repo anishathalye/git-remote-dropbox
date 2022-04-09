@@ -26,7 +26,7 @@ test_expect_success git push -u origin master
 ok
 
 section 'clone'
-cat >$HOME/.git-remote-dropbox.json <<EOF
+cat >$HOME/.config/git/git-remote-dropbox.json <<EOF
 {
     "default": "${DROPBOX_TOKEN}"
 }

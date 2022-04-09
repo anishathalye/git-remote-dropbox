@@ -10,7 +10,7 @@ from git_remote_dropbox.cli.common import (
 import sys
 
 
-def main():
+def main() -> None:
     """
     Main entry point for git-remote-dropbox Git remote helper.
     """

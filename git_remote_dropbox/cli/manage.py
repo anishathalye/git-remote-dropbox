@@ -1,15 +1,20 @@
 import git_remote_dropbox
 import git_remote_dropbox.git as git
+import git_remote_dropbox.constants as constants
 from git_remote_dropbox.cli.common import (
     error,
     get_helper,
+    get_config,
 )
+
+import dropbox  # type: ignore
 
 import argparse
 import subprocess
+from typing import Optional
 
 
-def main():
+def main() -> None:
     """
     Main entry point for git-dropbox program.
     """
@@ -21,8 +26,19 @@ def main():
     parser_set_head = subparsers.add_parser("set-head", help="set the default branch on the remote")
     parser_set_head.add_argument("remote", type=str, help="name of the remote")
     parser_set_head.add_argument("branch", type=str, help="name of the branch on the remote")
-    parser_set_head = subparsers.add_parser(
+
+    parser_version = subparsers.add_parser(
         "version", help="print the version of git-remote-dropbox"
+    )
+
+    parser_login = subparsers.add_parser("login", help="log in to Dropbox")
+    parser_login.add_argument("username", type=str, help="username/tag", nargs="?", default=None)
+
+    parser_logout = subparsers.add_parser("logout", help="log out from Dropbox")
+    parser_logout.add_argument("username", type=str, help="username/tag", nargs="?", default=None)
+
+    parser_show_logins = subparsers.add_parser(
+        "show-logins", help="show logged-in accounts and their usernames/tags"
     )
 
     args = parser.parse_args()
@@ -31,9 +47,15 @@ def main():
         set_head(args.remote, args.branch)
     elif args.command == "version":
         version()
+    elif args.command == "login":
+        login(args.username)
+    elif args.command == "logout":
+        logout(args.username)
+    elif args.command == "show-logins":
+        show_logins()
 
 
-def set_head(remote, branch):
+def set_head(remote: str, branch: str) -> None:
     """
     Set the default branch on the remote to point to branch.
 
@@ -79,5 +101,63 @@ def set_head(remote, branch):
     print("Updated remote HEAD to '%s'." % remote_ref)
 
 
-def version():
+def login(username: Optional[str]) -> None:
+    auth_flow = dropbox.DropboxOAuth2FlowNoRedirect(
+        constants.APP_KEY, use_pkce=True, token_access_type="offline"
+    )
+    authorize_url = auth_flow.start()
+    print("Logging in to Dropbox using OAuth...")
+    print("1. Go to: %s" % authorize_url)
+    print('2. Click "Allow" (you might have to log in first)')
+    print("3. Copy the authorization code")
+    auth_code = input("Enter authorization code: ").strip()
+    try:
+        oauth_result = auth_flow.finish(auth_code)
+        refresh_token = oauth_result.refresh_token
+    except:
+        error("failed to log in; did you copy the code correctly?")
+
+    config = get_config()
+    token_rep = ["refresh", refresh_token]
+    if username is None:
+        config["tokens"]["default"] = token_rep
+    else:
+        config["tokens"]["named"][username] = token_rep
+    config.save()
+
+    if username is None:
+        example = "dropbox:///path/to/repo"
+    else:
+        example = "dropbox://%s@/path/to/repo" % username
+    print("Successfully logged in! You can now add Dropbox remotes like '%s'" % example)
+
+
+def logout(username: Optional[str]) -> None:
+    config = get_config()
+    if username is None:
+        config["tokens"]["default"] = None
+        config.save()
+        print("Logged out!")
+    else:
+        config["tokens"]["named"].pop(username, None)
+        config.save()
+        print("Logged out %s!" % username)
+
+
+def show_logins() -> None:
+    config = get_config()
+    token_rep = config["tokens"]["default"]
+    if token_rep is not None:
+        deprecated = ""
+        if token_rep[0] == "long-lived":
+            deprecated = " [deprecated long-lived token]"
+        print("(default user)%s" % deprecated)
+    for username, token_rep in config["tokens"]["named"].items():
+        deprecated = ""
+        if token_rep[0] == "long-lived":
+            deprecated = " [deprecated long-lived token]"
+        print("%s%s" % (username, deprecated))
+
+
+def version() -> None:
     print("git-remote-dropbox %s" % git_remote_dropbox.__version__)
