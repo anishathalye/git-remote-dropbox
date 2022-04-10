@@ -41,7 +41,7 @@ class Helper:
 
     def __init__(
         self, connector: Callable[[], dropbox.Dropbox], path: str, processes: int = PROCESSES
-    ):
+    ) -> None:
         self._connector = connector
         self._per_thread = threading.local()
         self._path = path
@@ -511,7 +511,7 @@ class Helper:
             refs.append((sha, name))
         return refs
 
-    def write_symbolic_ref(self, path: str, ref: str, rev: Optional[str] = None):
+    def write_symbolic_ref(self, path: str, ref: str, rev: Optional[str] = None) -> bool:
         """
         Write the given symbolic ref to the remote.
 

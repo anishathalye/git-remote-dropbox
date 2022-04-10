@@ -128,7 +128,7 @@ def write_object(kind: str, contents: bytes) -> str:
     return sha
 
 
-def list_objects(ref: str, exclude: List[str]):
+def list_objects(ref: str, exclude: List[str]) -> List[str]:
     """
     Return the objects reachable from ref excluding the objects reachable from
     exclude.
