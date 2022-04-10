@@ -16,6 +16,7 @@ import git_remote_dropbox.git as git
 import dropbox  # type: ignore
 
 import multiprocessing
+import threading
 from typing import Callable, Optional, NoReturn, Tuple, Dict, List, Set
 
 try:
@@ -42,6 +43,7 @@ class Helper:
         self, connector: Callable[[], dropbox.Dropbox], path: str, processes: int = PROCESSES
     ):
         self._connector = connector
+        self._per_thread = threading.local()
         self._path = path
         self._processes = processes
         self._verbosity = Level.INFO  # default verbosity
@@ -86,13 +88,16 @@ class Helper:
         self._trace(message, Level.ERROR)
         exit(1)
 
+    @property
     def _connection(self) -> dropbox.Dropbox:
         """
-        Return a Dropbox connection object.
+        Return a Dropbox connection object private to this thread.
+
+        Lazily initialized per-thread.
         """
-        # we use fresh connection objects for every use so that multiple
-        # threads can have connections simultaneously
-        return self._connector()
+        if not hasattr(self._per_thread, "connection"):
+            self._per_thread.connection = self._connector()
+        return self._per_thread.connection
 
     def run(self) -> None:
         """
@@ -192,7 +197,7 @@ class Helper:
             self._write("error %s refusing to delete the current branch: %s" % (ref, head))
             return
         try:
-            self._connection().files_delete(self._ref_path(ref))
+            self._connection.files_delete(self._ref_path(ref))
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.DeleteError):
                 raise
@@ -269,7 +274,7 @@ class Helper:
         Return a tuple (revision, content).
         """
         self._trace("fetching: %s" % path)
-        meta, resp = self._connection().files_download(path)
+        meta, resp = self._connection.files_download(path)
         return (meta.rev, resp.content)
 
     def _get_files(self, paths: List[str]) -> List[Tuple[str, bytes]]:
@@ -292,7 +297,7 @@ class Helper:
         if len(data) <= CHUNK_SIZE:
             while True:
                 try:
-                    self._connection().files_upload(data, path, mode, mute=True)
+                    self._connection.files_upload(data, path, mode, mute=True)
                 except dropbox.exceptions.InternalServerError:
                     self._trace("internal server error writing %s, retrying" % sha)
                     if retries < MAX_RETRIES:
@@ -302,7 +307,6 @@ class Helper:
                 else:
                     break
         else:
-            conn = self._connection()
             cursor = dropbox.files.UploadSessionCursor(offset=0)
             done_uploading = False
 
@@ -313,15 +317,15 @@ class Helper:
 
                     if cursor.offset == 0:
                         # upload first chunk
-                        result = conn.files_upload_session_start(chunk)
+                        result = self._connection.files_upload_session_start(chunk)
                         cursor.session_id = result.session_id
                     elif end < len(data):
                         # upload intermediate chunks
-                        conn.files_upload_session_append_v2(chunk, cursor)
+                        self._connection.files_upload_session_append_v2(chunk, cursor)
                     else:
                         # upload the last chunk
                         commit_info = dropbox.files.CommitInfo(path, mode, mute=True)
-                        conn.files_upload_session_finish(chunk, cursor, commit_info)
+                        self._connection.files_upload_session_finish(chunk, cursor, commit_info)
                         done_uploading = True
 
                     # advance cursor to next chunk
@@ -459,7 +463,7 @@ class Helper:
         self._trace("writing ref %s with mode %s" % (dst, mode))
         data = ("%s\n" % new_sha).encode("utf8")
         try:
-            self._connection().files_upload(data, path, mode, mute=True)
+            self._connection.files_upload(data, path, mode, mute=True)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
                 raise
@@ -475,10 +479,10 @@ class Helper:
         """
         try:
             loc = posixpath.join(self._path, "refs")
-            res = self._connection().files_list_folder(loc, recursive=True)
+            res = self._connection.files_list_folder(loc, recursive=True)
             files = res.entries
             while res.has_more:
-                res = self._connection().files_list_folder_continue(res.cursor)
+                res = self._connection.files_list_folder_continue(res.cursor)
                 files.extend(res.entries)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.ListFolderError):
@@ -526,7 +530,7 @@ class Helper:
         data = ("ref: %s\n" % ref).encode("utf8")
         self._trace("writing symbolic ref %s with mode %s" % (path, mode))
         try:
-            self._connection().files_upload(data, path, mode, mute=True)
+            self._connection.files_upload(data, path, mode, mute=True)
             return True
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
@@ -543,7 +547,7 @@ class Helper:
         path = posixpath.join(self._path, path)
         self._trace("fetching symbolic ref: %s" % path)
         try:
-            meta, resp = self._connection().files_download(path)
+            meta, resp = self._connection.files_download(path)
             ref = resp.content.decode("utf8")
             ref = ref[len("ref: ") :].rstrip()
             rev = meta.rev
