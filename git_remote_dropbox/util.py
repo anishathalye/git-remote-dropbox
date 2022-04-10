@@ -135,17 +135,17 @@ class Config:
             self.save()
         with open(filename) as f:
             self._settings = json.load(f)
-            version = self._settings.get("version")
-            # try to migrate
-            if version is None:
-                # v1 style config, before we had versions
-                self._settings = _migrate_config_v1_to_v2(self._settings)
-                self.save()
-            elif version != self.VERSION:
-                raise ValueError(
-                    'expected config version %d, got %s; delete the config file "%s" to re-initialize'
-                    % (self.VERSION, version, filename)
-                )
+        version = self._settings.get("version")
+        # try to migrate
+        if version is None:
+            # v1 style config, before we had versions
+            self._settings = _migrate_config_v1_to_v2(self._settings)
+            self.save()
+        elif version != self.VERSION:
+            raise ValueError(
+                'expected config version %d, got %s; delete the config file "%s" to re-initialize'
+                % (self.VERSION, version, filename)
+            )
 
     def get(self, key: str, value: Any = None) -> Any:
         return self._settings.get(key, value)
@@ -197,6 +197,7 @@ def atomic_write(contents: bytes, path: str) -> None:
         temp_file.write(contents)
         temp_file.flush()
         os.fsync(temp_file.fileno())
+        temp_file.close()  # necessary on Windows because we can't move an open file
         os.replace(temp_file.name, path)
     finally:
         try:
