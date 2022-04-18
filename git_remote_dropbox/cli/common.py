@@ -1,20 +1,22 @@
 from git_remote_dropbox.util import (
     Config,
     stderr,
+    Token,
+    LongLivedToken,
 )
 from git_remote_dropbox.helper import Helper
-from git_remote_dropbox.constants import APP_KEY
 
 import dropbox  # type: ignore
 
+import sys
 import os
-from typing import Callable, NoReturn
+from typing import NoReturn
 from urllib.parse import urlparse
 
 
 def error(msg: str) -> NoReturn:
     stderr("error: %s\n" % msg)
-    exit(1)
+    sys.exit(1)
 
 
 def get_config() -> Config:
@@ -32,15 +34,6 @@ def get_config() -> Config:
     path = config_files[0]
     os.makedirs(os.path.dirname(path), exist_ok=True)
     return Config(path, create=True)
-
-
-def make_connector(token_type: str, token: str) -> Callable[[], dropbox.Dropbox]:
-    if token_type == "long-lived":
-        return lambda: dropbox.Dropbox(token)
-    elif token_type == "refresh":
-        return lambda: dropbox.Dropbox(oauth2_refresh_token=token, app_key=APP_KEY)
-    else:
-        raise ValueError("cannot handle token type: %s" % token_type)
 
 
 def check_connection(dbx: dropbox.Dropbox) -> None:
@@ -72,22 +65,21 @@ def get_helper(url: str) -> Helper:
         error("URL path must not have trailing slash")
 
     config = get_config()
+    token: Token
     if parsed.password:
-        token_type = "long-lived"
-        token = parsed.password
+        token = LongLivedToken(parsed.password)
     elif parsed.username:
-        token_rep = config["tokens"]["named"].get(parsed.username)
-        if not token_rep:
+        t = config.get_named_token(parsed.username)
+        if not t:
             error("you must log in first with 'git dropbox login %s'" % parsed.username)
-        token_type, token = token_rep
+        token = t
     else:
-        token_rep = config["tokens"]["default"]
-        if not token_rep:
+        t = config.get_default_token()
+        if not t:
             error("you must log in first with 'git dropbox login'")
-        token_type, token = token_rep
-    connector = make_connector(token_type, token)
+        token = t
     try:
-        check_connection(connector())
+        check_connection(token.connect())
     except dropbox.exceptions.DropboxException:
         if parsed.password:
             error(
@@ -101,4 +93,4 @@ def get_helper(url: str) -> Helper:
         else:
             error("invalid access token, try logging in again with 'git dropbox login'")
 
-    return Helper(connector, path)
+    return Helper(token, path)

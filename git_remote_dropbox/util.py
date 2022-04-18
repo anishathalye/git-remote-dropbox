@@ -1,8 +1,14 @@
+from git_remote_dropbox.constants import APP_KEY
+
+import dropbox  # type: ignore
+
 import json
 import os
 import sys
 import tempfile
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict
+from abc import ABC, abstractmethod
+from enum import IntEnum
 
 
 def stdout(line: str) -> None:
@@ -38,7 +44,7 @@ def stdout_to_binary() -> None:
         msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
 
-class Level:
+class Level(IntEnum):
     """
     A class for severity levels.
     """
@@ -106,88 +112,155 @@ class Binder:
         return method(self._obj, *args)
 
 
+class Token(ABC):
+    @abstractmethod
+    def connect(self) -> dropbox.Dropbox:
+        raise NotImplementedError
+
+    @abstractmethod
+    def serialize(self) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def parse(cls, rep: Any) -> "Token":
+        raise NotImplementedError
+
+
+class RefreshToken(Token):
+    _value: str
+
+    def __init__(self, value: str) -> None:
+        self._value = value
+
+    def serialize(self) -> Any:
+        return ["refresh", self._value]
+
+    @classmethod
+    def parse(cls, rep: Any) -> "RefreshToken":
+        if (
+            not isinstance(rep, list)
+            or not len(rep) == 2
+            or not rep[0] == "refresh"
+            or not isinstance(rep[1], str)
+        ):
+            raise ValueError("cannot parse as RefreshToken")
+        return RefreshToken(rep[1])
+
+    def connect(self) -> dropbox.Dropbox:
+        return dropbox.Dropbox(oauth2_refresh_token=self._value, app_key=APP_KEY)
+
+
+class LongLivedToken(Token):
+    _value: str
+
+    def __init__(self, value: str) -> None:
+        self._value = value
+
+    def serialize(self) -> Any:
+        return ["long-lived", self._value]
+
+    @classmethod
+    def parse(cls, rep: Any) -> "LongLivedToken":
+        if (
+            not isinstance(rep, list)
+            or not len(rep) == 2
+            or not rep[0] == "long-lived"
+            or not isinstance(rep[1], str)
+        ):
+            raise ValueError("cannot parse as LongLivedToken")
+        return LongLivedToken(rep[1])
+
+    def connect(self) -> dropbox.Dropbox:
+        return dropbox.Dropbox(self._value)
+
+
+def parse_token(rep: Any) -> Token:
+    for TokenType in [RefreshToken, LongLivedToken]:
+        try:
+            token = TokenType.parse(rep)
+            return token
+        except ValueError:
+            continue
+    raise ValueError('cannot parse "%s" as a token' % rep)
+
+
 class Config:
     """
     A class to manage configuration data.
     """
 
-    VERSION = 2
-    INITIAL_CONFIG: Dict[str, Any] = {
-        "version": VERSION,
-        "tokens": {
-            "default": None,
-            "named": {},
-        },
-    }
-    """
-    tokens are stored as descriptors of the form
-        [tag, token]
-    where tag is one of ['long-lived', 'refresh']
+    _VERSION: int = 2
 
-    "default" stores the default account, while explicitly named usernames are
-    stored in "named"
-    """
+    _filename: str
+    _default_token: Optional[Token]
+    _named_tokens: Dict[str, Token]
 
     def __init__(self, filename: str, create: bool = False) -> None:
         self._filename = filename
+        self._default_token = None
+        self._named_tokens = {}
         if create:
-            self._settings = self.INITIAL_CONFIG
             self.save()
-        with open(filename) as f:
-            self._settings = json.load(f)
-        version = self._settings.get("version")
-        # try to migrate
-        if version is None:
-            # v1 style config, before we had versions
-            self._settings = _migrate_config_v1_to_v2(self._settings)
-            self.save()
-        elif version != self.VERSION:
-            raise ValueError(
-                'expected config version %d, got %s; delete the config file "%s" to re-initialize'
-                % (self.VERSION, version, filename)
-            )
-
-    def get(self, key: str, value: Any = None) -> Any:
-        return self._settings.get(key, value)
-
-    def __getitem__(self, key: str) -> Any:
-        """
-        Return the setting corresponding to key.
-
-        Raises KeyError if the config file is missing the key.
-        """
-        return self._settings[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self._settings[key] = value
+        else:
+            self.load()
 
     def save(self) -> None:
-        contents = json.dumps(self._settings, indent=2).encode("utf8")
+        rep: Dict[str, Any] = {}
+        rep["version"] = self._VERSION
+        named_tokens = {name: token.serialize() for name, token in self._named_tokens.items()}
+        default_token = self._default_token.serialize() if self._default_token else None
+        rep["tokens"] = {"default": default_token, "named": named_tokens}
+        contents = json.dumps(rep, indent=2).encode("utf8")
         atomic_write(contents, self._filename)
 
-
-def _migrate_config_v1_to_v2(obj: Dict[str, str]) -> Dict[str, Any]:
-    """
-    Migrate a git-remote-dropbox v1 configuration type to a v2-style configuration.
-
-    The v1 configuration mapped strings (usernames) to long-term tokens, and
-    used the string "default" to represent the default account.
-    """
-    named: Dict[str, List[str]] = {}
-    default_token = None
-    for username, token in obj.items():
-        token_rep = ["long-lived", token]
-        if username == "default":
-            default_token = token_rep
+    def load(self) -> None:
+        with open(self._filename) as f:
+            rep = json.load(f)
+        version = rep.get("version")
+        # try to migrate if necessary
+        if version is None:
+            # v1 style config, before we had versions
+            for username, token_rep in rep.items():
+                token = LongLivedToken(token_rep)
+                if username == "default":
+                    self._default_token = token
+                else:
+                    self._named_tokens[username] = token
+            self.save()
+        elif version != self._VERSION:
+            raise ValueError(
+                'expected config version %d, got %s; delete the config file "%s" to re-initialize'
+                % (self._VERSION, version, self._filename)
+            )
         else:
-            named[username] = token_rep
-    return {
-        "version": 2,
-        "tokens": {
-            "default": default_token,
-            "named": named,
-        },
-    }
+            # version is correct, parse
+            default_token_rep = rep["tokens"]["default"]
+            if default_token_rep:
+                self._default_token = parse_token(default_token_rep)
+            for username, token_rep in rep["tokens"]["named"].items():
+                self._named_tokens[username] = parse_token(token_rep)
+
+    def get_default_token(self) -> Optional[Token]:
+        return self._default_token
+
+    def set_default_token(self, token: Token) -> None:
+        self._default_token = token
+
+    def delete_default_token(self) -> None:
+        self._default_token = None
+
+    def named_tokens(self) -> Dict[str, Token]:
+        return self._named_tokens
+
+    def get_named_token(self, name: str) -> Optional[Token]:
+        return self._named_tokens.get(name)
+
+    def set_named_token(self, name: str, token: Token) -> None:
+        self._named_tokens[name] = token
+
+    def delete_named_token(self, name: str) -> None:
+        self._named_tokens.pop(name, None)  # ignore nonexistent
 
 
 def atomic_write(contents: bytes, path: str) -> None:
@@ -202,5 +275,5 @@ def atomic_write(contents: bytes, path: str) -> None:
     finally:
         try:
             os.unlink(temp_file.name)
-        except:
+        except Exception:
             pass

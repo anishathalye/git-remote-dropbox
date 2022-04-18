@@ -1,6 +1,7 @@
 import git_remote_dropbox
-import git_remote_dropbox.git as git
-import git_remote_dropbox.constants as constants
+from git_remote_dropbox import constants
+from git_remote_dropbox import git
+from git_remote_dropbox.util import RefreshToken, LongLivedToken
 from git_remote_dropbox.cli.common import (
     error,
     get_helper,
@@ -11,6 +12,7 @@ import dropbox  # type: ignore
 
 import argparse
 import subprocess
+import sys
 from typing import Optional
 
 
@@ -69,7 +71,7 @@ def set_head(remote: str, branch: str) -> None:
         url = git.get_remote_url(remote)
     except subprocess.CalledProcessError:
         error("no such remote '%s'" % remote)
-        exit(1)
+        sys.exit(1)
     helper = get_helper(url)
 
     remote_ref = "refs/heads/%s" % branch
@@ -113,16 +115,15 @@ def login(username: Optional[str]) -> None:
     auth_code = input("Enter authorization code: ").strip()
     try:
         oauth_result = auth_flow.finish(auth_code)
-        refresh_token = oauth_result.refresh_token
-    except:
+        token = RefreshToken(oauth_result.refresh_token)
+    except Exception:
         error("failed to log in; did you copy the code correctly?")
 
     config = get_config()
-    token_rep = ["refresh", refresh_token]
     if username is None:
-        config["tokens"]["default"] = token_rep
+        config.set_default_token(token)
     else:
-        config["tokens"]["named"][username] = token_rep
+        config.set_named_token(username, token)
     config.save()
 
     if username is None:
@@ -135,26 +136,26 @@ def login(username: Optional[str]) -> None:
 def logout(username: Optional[str]) -> None:
     config = get_config()
     if username is None:
-        config["tokens"]["default"] = None
+        config.delete_default_token()
         config.save()
         print("Logged out!")
     else:
-        config["tokens"]["named"].pop(username, None)
+        config.delete_named_token(username)
         config.save()
         print("Logged out %s!" % username)
 
 
 def show_logins() -> None:
     config = get_config()
-    token_rep = config["tokens"]["default"]
-    if token_rep is not None:
+    token = config.get_default_token()
+    if token is not None:
         deprecated = ""
-        if token_rep[0] == "long-lived":
+        if isinstance(token, LongLivedToken):
             deprecated = " [deprecated long-lived token]"
         print("(default user)%s" % deprecated)
-    for username, token_rep in config["tokens"]["named"].items():
+    for username, token in config.named_tokens().items():
         deprecated = ""
-        if token_rep[0] == "long-lived":
+        if isinstance(token, LongLivedToken):
             deprecated = " [deprecated long-lived token]"
         print("%s%s" % (username, deprecated))
 

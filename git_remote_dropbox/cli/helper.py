@@ -28,4 +28,4 @@ def main() -> None:
             error("unexpected exception (run with -v for details)")
     except KeyboardInterrupt:
         # exit silently with an error code
-        exit(1)
+        sys.exit(1)

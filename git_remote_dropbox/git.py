@@ -2,7 +2,7 @@ from git_remote_dropbox.constants import DEVNULL
 
 import subprocess
 import zlib
-from typing import overload, Optional, Union, List
+from typing import Optional, List
 
 
 EMPTY_TREE_HASH: str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -118,13 +118,13 @@ def decode_object(data: bytes) -> str:
 
 
 def write_object(kind: str, contents: bytes) -> str:
-    p = subprocess.Popen(
+    with subprocess.Popen(
         ["git", "hash-object", "-w", "--stdin", "-t", kind],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=DEVNULL,
-    )
-    sha = p.communicate(contents)[0].decode("utf8").strip()
+    ) as p:
+        sha = p.communicate(contents)[0].decode("utf8").strip()
     return sha
 
 
@@ -151,7 +151,7 @@ def referenced_objects(sha: str) -> List[str]:
     data = object_data(sha).decode("utf8").strip()
     if kind == "tag":
         # tag objects reference a single object
-        obj = data.split("\n")[0].split()[1]
+        obj = data.split("\n", maxsplit=1)[0].split()[1]
         return [obj]
     elif kind == "commit":
         # commit objects reference a tree and zero or more parents

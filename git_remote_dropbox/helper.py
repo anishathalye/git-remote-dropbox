@@ -10,28 +10,29 @@ from git_remote_dropbox.util import (
     stderr,
     Binder,
     Poison,
+    Token,
 )
-import git_remote_dropbox.git as git
+from git_remote_dropbox import git
 
 import dropbox  # type: ignore
 
 import multiprocessing
+import multiprocessing.dummy
+import multiprocessing.pool
+import posixpath
+import sys
 import threading
-from typing import Callable, Optional, NoReturn, Tuple, Dict, List, Set
+from typing import Optional, NoReturn, Tuple, Dict, List, Set
 
 try:
     # Importing synchronize is to detect platforms where
     # multiprocessing does not work (python issue 3770)
     # and cause an ImportError. Otherwise it will happen
     # later when trying to use Queue().
-    from multiprocessing import synchronize
+    from multiprocessing import synchronize as _
     from multiprocessing import Queue  # type: ignore
 except ImportError:
     from queue import Queue  # type: ignore
-
-import multiprocessing.dummy
-import multiprocessing.pool
-import posixpath
 
 
 class Helper:
@@ -39,10 +40,8 @@ class Helper:
     A git remote helper to communicate with Dropbox.
     """
 
-    def __init__(
-        self, connector: Callable[[], dropbox.Dropbox], path: str, processes: int = PROCESSES
-    ) -> None:
-        self._connector = connector
+    def __init__(self, token: Token, path: str, processes: int = PROCESSES) -> None:
+        self._token = token
         self._per_thread = threading.local()
         self._path = path
         self._processes = processes
@@ -52,19 +51,10 @@ class Helper:
         self._first_push = False
 
     @property
-    def verbosity(self) -> int:
+    def verbosity(self) -> Level:
         return self._verbosity
 
-    def _write(self, message: Optional[str] = None) -> None:
-        """
-        Write a message to standard output.
-        """
-        if message is not None:
-            stdout("%s\n" % message)
-        else:
-            stdout("\n")
-
-    def _trace(self, message: str, level: int = Level.DEBUG, exact: bool = False) -> None:
+    def _trace(self, message: str, level: Level = Level.DEBUG, exact: bool = False) -> None:
         """
         Log a message with a given severity level.
         """
@@ -86,7 +76,7 @@ class Helper:
         Log a fatal error and exit.
         """
         self._trace(message, Level.ERROR)
-        exit(1)
+        sys.exit(1)
 
     @property
     def _connection(self) -> dropbox.Dropbox:
@@ -96,7 +86,7 @@ class Helper:
         Lazily initialized per-thread.
         """
         if not hasattr(self._per_thread, "connection"):
-            self._per_thread.connection = self._connector()
+            self._per_thread.connection = self._token.connect()
         return self._per_thread.connection
 
     def run(self) -> None:
@@ -106,10 +96,10 @@ class Helper:
         while True:
             line = readline()
             if line == "capabilities":
-                self._write("option")
-                self._write("push")
-                self._write("fetch")
-                self._write()
+                _write("option")
+                _write("push")
+                _write("fetch")
+                _write()
             elif line.startswith("option"):
                 self._do_option(line)
             elif line.startswith("list"):
@@ -128,10 +118,10 @@ class Helper:
         Handle the option command.
         """
         if line.startswith("option verbosity"):
-            self._verbosity = int(line[len("option verbosity ") :])
-            self._write("ok")
+            self._verbosity = Level(int(line[len("option verbosity ") :]))
+            _write("ok")
         else:
-            self._write("unsupported")
+            _write("unsupported")
 
     def _do_list(self, line: str) -> None:
         """
@@ -140,14 +130,14 @@ class Helper:
         for_push = "for-push" in line
         refs = self.get_refs(for_push=for_push)
         for sha, ref in refs:
-            self._write("%s %s" % (sha, ref))
+            _write("%s %s" % (sha, ref))
         if not for_push:
             head = self.read_symbolic_ref("HEAD")
             if head:
-                self._write("@%s HEAD" % head[1])
+                _write("@%s HEAD" % head[1])
             else:
                 self._trace("no default branch on remote", Level.INFO)
-        self._write()
+        _write()
 
     def _do_push(self, line: str) -> None:
         """
@@ -173,7 +163,7 @@ class Helper:
                     else:
                         self._trace("first push but no branch to set remote HEAD")
                 break
-        self._write()
+        _write()
 
     def _do_fetch(self, line: str) -> None:
         """
@@ -185,7 +175,7 @@ class Helper:
             line = readline()
             if line == "":
                 break
-        self._write()
+        _write()
 
     def _delete(self, ref: str) -> None:
         """
@@ -194,7 +184,7 @@ class Helper:
         self._trace("deleting ref %s" % ref)
         head = self.read_symbolic_ref("HEAD")
         if head and ref == head[1]:
-            self._write("error %s refusing to delete the current branch: %s" % (ref, head))
+            _write("error %s refusing to delete the current branch: %s" % (ref, head))
             return
         try:
             self._connection.files_delete(self._ref_path(ref))
@@ -204,7 +194,7 @@ class Helper:
             # someone else might have deleted it first, that's fine
         self._refs.pop(ref, None)  # discard
         self._pushed.pop(ref, None)  # discard
-        self._write("ok %s" % ref)
+        _write("ok %s" % ref)
 
     def _push(self, src: str, dst: str) -> None:
         """
@@ -239,10 +229,10 @@ class Helper:
         sha = git.ref_value(src)
         error = self._write_ref(sha, dst, force)
         if error is None:
-            self._write("ok %s" % dst)
+            _write("ok %s" % dst)
             self._pushed[dst] = sha
         else:
-            self._write("error %s %s" % (dst, error))
+            _write("error %s %s" % (dst, error))
 
     def _ref_path(self, name: str) -> str:
         """
@@ -556,3 +546,13 @@ class Helper:
             if not isinstance(e.error, dropbox.files.DownloadError):
                 raise
             return None
+
+
+def _write(message: Optional[str] = None) -> None:
+    """
+    Write a message to standard output.
+    """
+    if message is not None:
+        stdout("%s\n" % message)
+    else:
+        stdout("\n")
