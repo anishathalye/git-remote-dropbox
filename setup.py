@@ -39,14 +39,12 @@ setup(
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Version Control",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.2",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     keywords="git dropbox",
     packages=find_packages(),
@@ -56,6 +54,9 @@ setup(
     entry_points={
         "console_scripts": [
             "git-remote-dropbox=git_remote_dropbox.cli.helper:main",
+            "git-dropbox=git_remote_dropbox.cli.manage:main",
+            # Users might have a `git dropbox` alias set up for `git-dropbox-manage`,
+            # according to the old instructions. Don't break their config.
             "git-dropbox-manage=git_remote_dropbox.cli.manage:main",
         ],
     },

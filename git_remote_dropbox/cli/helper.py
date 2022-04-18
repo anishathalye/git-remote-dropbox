@@ -10,7 +10,7 @@ from git_remote_dropbox.cli.common import (
 import sys
 
 
-def main():
+def main() -> None:
     """
     Main entry point for git-remote-dropbox Git remote helper.
     """
@@ -28,4 +28,4 @@ def main():
             error("unexpected exception (run with -v for details)")
     except KeyboardInterrupt:
         # exit silently with an error code
-        exit(1)
+        sys.exit(1)

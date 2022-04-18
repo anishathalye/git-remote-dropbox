@@ -2,25 +2,29 @@ from git_remote_dropbox.constants import DEVNULL
 
 import subprocess
 import zlib
+from typing import Optional, List
 
 
-EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+EMPTY_TREE_HASH: str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 
-def command_output(*args, **kwargs):
+def command_output_raw(*args: str) -> bytes:
     """
-    Return the result of running a git command.
+    Return the raw result of running a git command.
     """
     args = ("git",) + args
     output = subprocess.check_output(args, stderr=DEVNULL)
-    if kwargs.get("decode", True):
-        output = output.decode("utf8")
-    if kwargs.get("strip", True):
-        output = output.strip()
     return output
 
 
-def command_ok(*args):
+def command_output(*args: str) -> str:
+    """
+    Return the raw result of running a git command.
+    """
+    return command_output_raw(*args).decode("utf8").strip()
+
+
+def command_ok(*args: str) -> bool:
     """
     Return whether a git command runs successfully.
     """
@@ -28,7 +32,7 @@ def command_ok(*args):
     return subprocess.call(args, stdout=DEVNULL, stderr=DEVNULL) == 0
 
 
-def is_ancestor(ancestor, ref):
+def is_ancestor(ancestor: str, ref: str) -> bool:
     """
     Return whether ancestor is an ancestor of ref.
 
@@ -37,14 +41,14 @@ def is_ancestor(ancestor, ref):
     return command_ok("merge-base", "--is-ancestor", ancestor, ref)
 
 
-def object_exists(sha):
+def object_exists(sha: str) -> bool:
     """
     Return whether the object exists in the repository.
     """
     return command_ok("cat-file", "-e", sha)
 
 
-def history_exists(sha):
+def history_exists(sha: str) -> bool:
     """
     Return whether the object, along with its history, exists in the
     repository.
@@ -52,40 +56,40 @@ def history_exists(sha):
     return command_ok("rev-list", "--objects", sha)
 
 
-def ref_value(ref):
+def ref_value(ref: str) -> str:
     """
     Return the hash of the ref.
     """
     return command_output("rev-parse", ref)
 
 
-def symbolic_ref_value(name):
+def symbolic_ref_value(name: str) -> str:
     """
     Return the branch head to which the symbolic ref refers.
     """
     return command_output("symbolic-ref", name)
 
 
-def object_kind(sha):
+def object_kind(sha: str) -> str:
     """
     Return the type of the object.
     """
     return command_output("cat-file", "-t", sha)
 
 
-def object_data(sha, kind=None):
+def object_data(sha: str, kind: Optional[str] = None) -> bytes:
     """
     Return the contents of the object.
 
     If kind is None, return a pretty-printed representation of the object.
     """
     if kind is not None:
-        return command_output("cat-file", kind, sha, decode=False, strip=False)
+        return command_output_raw("cat-file", kind, sha)
     else:
-        return command_output("cat-file", "-p", sha, decode=False, strip=False)
+        return command_output_raw("cat-file", "-p", sha)
 
 
-def encode_object(sha):
+def encode_object(sha: str) -> bytes:
     """
     Return the encoded contents of the object.
 
@@ -101,7 +105,7 @@ def encode_object(sha):
     return compressed
 
 
-def decode_object(data):
+def decode_object(data: bytes) -> str:
     """
     Decode the object, write it, and return the computed hash.
 
@@ -113,18 +117,18 @@ def decode_object(data):
     return write_object(kind.decode("utf8"), contents)
 
 
-def write_object(kind, contents):
-    p = subprocess.Popen(
+def write_object(kind: str, contents: bytes) -> str:
+    with subprocess.Popen(
         ["git", "hash-object", "-w", "--stdin", "-t", kind],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=DEVNULL,
-    )
-    sha = p.communicate(contents)[0].decode("utf8").strip()
+    ) as p:
+        sha = p.communicate(contents)[0].decode("utf8").strip()
     return sha
 
 
-def list_objects(ref, exclude):
+def list_objects(ref: str, exclude: List[str]) -> List[str]:
     """
     Return the objects reachable from ref excluding the objects reachable from
     exclude.
@@ -136,7 +140,7 @@ def list_objects(ref, exclude):
     return [i.split()[0] for i in objects.split("\n")]
 
 
-def referenced_objects(sha):
+def referenced_objects(sha: str) -> List[str]:
     """
     Return the objects directly referenced by the object.
     """
@@ -147,7 +151,7 @@ def referenced_objects(sha):
     data = object_data(sha).decode("utf8").strip()
     if kind == "tag":
         # tag objects reference a single object
-        obj = data.split("\n")[0].split()[1]
+        obj = data.split("\n", maxsplit=1)[0].split()[1]
         return [obj]
     elif kind == "commit":
         # commit objects reference a tree and zero or more parents
@@ -173,7 +177,7 @@ def referenced_objects(sha):
         raise Exception("unexpected git object type: %s" % kind)
 
 
-def get_remote_url(name):
+def get_remote_url(name: str) -> str:
     """
     Return the URL of the given remote.
     """

@@ -1,8 +1,9 @@
 import os
+from typing import TextIO
 
 
-CONFIG_FILE = "~/.git-remote-dropbox.json"
-DEVNULL = open(os.devnull, "w")
-PROCESSES = 20
-MAX_RETRIES = 3
-CHUNK_SIZE = 50 * 1024 * 1024  # 50 megabytes
+APP_KEY: str = "h7d8z1irmz0r7lp"
+DEVNULL: TextIO = open(os.devnull, "w")
+PROCESSES: int = 20
+MAX_RETRIES: int = 3
+CHUNK_SIZE: int = 50 * 1024 * 1024  # 50 megabytes

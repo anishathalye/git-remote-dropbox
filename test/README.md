@@ -13,7 +13,7 @@ with the real Dropbox API during the test.
 
 ```bash
 cd /git-remote-dropbox
-pip install -e .
+pip3 install -e .
 cd test
 export DROPBOX_TOKEN='...'
 ./test.sh

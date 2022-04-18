@@ -10,55 +10,51 @@ from git_remote_dropbox.util import (
     stderr,
     Binder,
     Poison,
+    Token,
 )
-import git_remote_dropbox.git as git
+from git_remote_dropbox import git
 
-import dropbox
+import dropbox  # type: ignore
 
 import multiprocessing
+import multiprocessing.dummy
+import multiprocessing.pool
+import posixpath
+import sys
+import threading
+from typing import Optional, NoReturn, Tuple, Dict, List, Set
 
 try:
     # Importing synchronize is to detect platforms where
     # multiprocessing does not work (python issue 3770)
     # and cause an ImportError. Otherwise it will happen
     # later when trying to use Queue().
-    from multiprocessing import synchronize, Queue
+    from multiprocessing import synchronize as _
+    from multiprocessing import Queue  # type: ignore
 except ImportError:
-    from queue import Queue
-
-import multiprocessing.dummy
-import multiprocessing.pool
-import posixpath
+    from queue import Queue  # type: ignore
 
 
-class Helper(object):
+class Helper:
     """
     A git remote helper to communicate with Dropbox.
     """
 
-    def __init__(self, token, path, processes=PROCESSES):
+    def __init__(self, token: Token, path: str, processes: int = PROCESSES) -> None:
         self._token = token
+        self._per_thread = threading.local()
         self._path = path
         self._processes = processes
         self._verbosity = Level.INFO  # default verbosity
-        self._refs = {}  # map from remote ref name => (rev number, sha)
-        self._pushed = {}  # map from remote ref name => sha
+        self._refs: Dict[str, Tuple[str, str]] = {}  # map from remote ref name => (rev number, sha)
+        self._pushed: Dict[str, str] = {}  # map from remote ref name => sha
         self._first_push = False
 
     @property
-    def verbosity(self):
+    def verbosity(self) -> Level:
         return self._verbosity
 
-    def _write(self, message=None):
-        """
-        Write a message to standard output.
-        """
-        if message is not None:
-            stdout("%s\n" % message)
-        else:
-            stdout("\n")
-
-    def _trace(self, message, level=Level.DEBUG, exact=False):
+    def _trace(self, message: str, level: Level = Level.DEBUG, exact: bool = False) -> None:
         """
         Log a message with a given severity level.
         """
@@ -75,32 +71,35 @@ class Helper(object):
         elif level >= Level.DEBUG:
             stderr("debug: %s\n" % message)
 
-    def _fatal(self, message):
+    def _fatal(self, message: str) -> NoReturn:
         """
         Log a fatal error and exit.
         """
         self._trace(message, Level.ERROR)
-        exit(1)
+        sys.exit(1)
 
-    def _connection(self):
+    @property
+    def _connection(self) -> dropbox.Dropbox:
         """
-        Return a Dropbox connection object.
-        """
-        # we use fresh connection objects for every use so that multiple
-        # threads can have connections simultaneously
-        return dropbox.Dropbox(self._token)
+        Return a Dropbox connection object private to this thread.
 
-    def run(self):
+        Lazily initialized per-thread.
+        """
+        if not hasattr(self._per_thread, "connection"):
+            self._per_thread.connection = self._token.connect()
+        return self._per_thread.connection
+
+    def run(self) -> None:
         """
         Run the helper following the git remote helper communication protocol.
         """
         while True:
             line = readline()
             if line == "capabilities":
-                self._write("option")
-                self._write("push")
-                self._write("fetch")
-                self._write()
+                _write("option")
+                _write("push")
+                _write("fetch")
+                _write()
             elif line.startswith("option"):
                 self._do_option(line)
             elif line.startswith("list"):
@@ -114,33 +113,33 @@ class Helper(object):
             else:
                 self._fatal("unsupported operation: %s" % line)
 
-    def _do_option(self, line):
+    def _do_option(self, line: str) -> None:
         """
         Handle the option command.
         """
         if line.startswith("option verbosity"):
-            self._verbosity = int(line[len("option verbosity ") :])
-            self._write("ok")
+            self._verbosity = Level(int(line[len("option verbosity ") :]))
+            _write("ok")
         else:
-            self._write("unsupported")
+            _write("unsupported")
 
-    def _do_list(self, line):
+    def _do_list(self, line: str) -> None:
         """
         Handle the list command.
         """
         for_push = "for-push" in line
         refs = self.get_refs(for_push=for_push)
         for sha, ref in refs:
-            self._write("%s %s" % (sha, ref))
+            _write("%s %s" % (sha, ref))
         if not for_push:
             head = self.read_symbolic_ref("HEAD")
             if head:
-                self._write("@%s HEAD" % head[1])
+                _write("@%s HEAD" % head[1])
             else:
                 self._trace("no default branch on remote", Level.INFO)
-        self._write()
+        _write()
 
-    def _do_push(self, line):
+    def _do_push(self, line: str) -> None:
         """
         Handle the push command.
         """
@@ -158,12 +157,15 @@ class Helper(object):
             if line == "":
                 if self._first_push:
                     self._first_push = False
-                    if not self.write_symbolic_ref("HEAD", remote_head):
-                        self._trace("failed to set default branch on remote", Level.INFO)
+                    if remote_head:
+                        if not self.write_symbolic_ref("HEAD", remote_head):
+                            self._trace("failed to set default branch on remote", Level.INFO)
+                    else:
+                        self._trace("first push but no branch to set remote HEAD")
                 break
-        self._write()
+        _write()
 
-    def _do_fetch(self, line):
+    def _do_fetch(self, line: str) -> None:
         """
         Handle the fetch command.
         """
@@ -173,28 +175,28 @@ class Helper(object):
             line = readline()
             if line == "":
                 break
-        self._write()
+        _write()
 
-    def _delete(self, ref):
+    def _delete(self, ref: str) -> None:
         """
         Delete the ref from the remote.
         """
         self._trace("deleting ref %s" % ref)
         head = self.read_symbolic_ref("HEAD")
         if head and ref == head[1]:
-            self._write("error %s refusing to delete the current branch: %s" % (ref, head))
+            _write("error %s refusing to delete the current branch: %s" % (ref, head))
             return
         try:
-            self._connection().files_delete(self._ref_path(ref))
+            self._connection.files_delete(self._ref_path(ref))
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.DeleteError):
                 raise
             # someone else might have deleted it first, that's fine
         self._refs.pop(ref, None)  # discard
         self._pushed.pop(ref, None)  # discard
-        self._write("ok %s" % ref)
+        _write("ok %s" % ref)
 
-    def _push(self, src, dst):
+    def _push(self, src: str, dst: str) -> None:
         """
         Push src to dst on the remote.
         """
@@ -227,19 +229,19 @@ class Helper(object):
         sha = git.ref_value(src)
         error = self._write_ref(sha, dst, force)
         if error is None:
-            self._write("ok %s" % dst)
+            _write("ok %s" % dst)
             self._pushed[dst] = sha
         else:
-            self._write("error %s %s" % (dst, error))
+            _write("error %s %s" % (dst, error))
 
-    def _ref_path(self, name):
+    def _ref_path(self, name: str) -> str:
         """
         Return the path to the given ref on the remote.
         """
         assert name.startswith("refs/")
         return posixpath.join(self._path, name)
 
-    def _ref_name_from_path(self, path):
+    def _ref_name_from_path(self, path: str) -> str:
         """
         Return the ref name given the full path of the remote ref.
         """
@@ -247,7 +249,7 @@ class Helper(object):
         assert path.startswith(prefix)
         return path[len(prefix) :]
 
-    def _object_path(self, name):
+    def _object_path(self, name: str) -> str:
         """
         Return the path to the given object on the remote.
         """
@@ -255,24 +257,24 @@ class Helper(object):
         suffix = name[2:]
         return posixpath.join(self._path, "objects", prefix, suffix)
 
-    def _get_file(self, path):
+    def _get_file(self, path: str) -> Tuple[str, bytes]:
         """
         Return the revision number and content of a given file on the remote.
 
         Return a tuple (revision, content).
         """
         self._trace("fetching: %s" % path)
-        meta, resp = self._connection().files_download(path)
+        meta, resp = self._connection.files_download(path)
         return (meta.rev, resp.content)
 
-    def _get_files(self, paths):
+    def _get_files(self, paths: List[str]) -> List[Tuple[str, bytes]]:
         """
         Return a list of (revision number, content) for a given list of files.
         """
         pool = multiprocessing.dummy.Pool(self._processes)
         return pool.map(self._get_file, paths)
 
-    def _put_object(self, sha):
+    def _put_object(self, sha: str) -> None:
         """
         Upload an object to the remote.
         """
@@ -285,7 +287,7 @@ class Helper(object):
         if len(data) <= CHUNK_SIZE:
             while True:
                 try:
-                    self._connection().files_upload(data, path, mode, mute=True)
+                    self._connection.files_upload(data, path, mode, mute=True)
                 except dropbox.exceptions.InternalServerError:
                     self._trace("internal server error writing %s, retrying" % sha)
                     if retries < MAX_RETRIES:
@@ -295,7 +297,6 @@ class Helper(object):
                 else:
                     break
         else:
-            conn = self._connection()
             cursor = dropbox.files.UploadSessionCursor(offset=0)
             done_uploading = False
 
@@ -306,15 +307,15 @@ class Helper(object):
 
                     if cursor.offset == 0:
                         # upload first chunk
-                        result = conn.files_upload_session_start(chunk)
+                        result = self._connection.files_upload_session_start(chunk)
                         cursor.session_id = result.session_id
                     elif end < len(data):
                         # upload intermediate chunks
-                        conn.files_upload_session_append_v2(chunk, cursor)
+                        self._connection.files_upload_session_append_v2(chunk, cursor)
                     else:
                         # upload the last chunk
                         commit_info = dropbox.files.CommitInfo(path, mode, mute=True)
-                        conn.files_upload_session_finish(chunk, cursor, commit_info)
+                        self._connection.files_upload_session_finish(chunk, cursor, commit_info)
                         done_uploading = True
 
                     # advance cursor to next chunk
@@ -334,7 +335,7 @@ class Helper(object):
                     else:
                         raise
 
-    def _download(self, input_queue, output_queue):
+    def _download(self, input_queue: Queue, output_queue: Queue) -> None:
         """
         Download files given in input_queue and push results to output_queue.
         """
@@ -351,16 +352,16 @@ class Helper(object):
             except Exception as e:
                 output_queue.put(Poison("exception while downloading: %s" % e))
 
-    def _fetch(self, sha):
+    def _fetch(self, sha: str) -> None:
         """
         Recursively fetch the given object and the objects it references.
         """
         # have multiple threads downloading in parallel
         queue = [sha]
-        pending = set()
-        downloaded = set()
-        input_queue = Queue()  # requesting downloads
-        output_queue = Queue()  # completed downloads
+        pending: Set[str] = set()
+        downloaded: Set[str] = set()
+        input_queue: Queue = Queue()  # requesting downloads
+        output_queue: Queue = Queue()  # completed downloads
         procs = []
         for _ in range(self._processes):
             target = Binder(self, "_download")
@@ -400,6 +401,8 @@ class Helper(object):
                 # process completed download
                 res = output_queue.get()
                 if isinstance(res, Poison):
+                    # _download never puts Poison with an empty message in the output_queue
+                    assert res.message is not None
                     self._fatal(res.message)
                 pending.remove(res)
                 downloaded.add(res)
@@ -421,7 +424,7 @@ class Helper(object):
         for proc in procs:
             proc.join()
 
-    def _write_ref(self, new_sha, dst, force=False):
+    def _write_ref(self, new_sha: str, dst: str, force: bool = False) -> Optional[str]:
         """
         Atomically update the given reference to point to the given object.
 
@@ -450,7 +453,7 @@ class Helper(object):
         self._trace("writing ref %s with mode %s" % (dst, mode))
         data = ("%s\n" % new_sha).encode("utf8")
         try:
-            self._connection().files_upload(data, path, mode, mute=True)
+            self._connection.files_upload(data, path, mode, mute=True)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
                 raise
@@ -458,7 +461,7 @@ class Helper(object):
         else:
             return None
 
-    def get_refs(self, for_push):
+    def get_refs(self, for_push: bool) -> List[Tuple[str, str]]:
         """
         Return the refs present on the remote.
 
@@ -466,10 +469,10 @@ class Helper(object):
         """
         try:
             loc = posixpath.join(self._path, "refs")
-            res = self._connection().files_list_folder(loc, recursive=True)
+            res = self._connection.files_list_folder(loc, recursive=True)
             files = res.entries
             while res.has_more:
-                res = self._connection().files_list_folder_continue(res.cursor)
+                res = self._connection.files_list_folder_continue(res.cursor)
                 files.extend(res.entries)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.ListFolderError):
@@ -485,16 +488,20 @@ class Helper(object):
         paths = [i.path_lower for i in files]
         if not paths:
             return []
-        revs, data = zip(*self._get_files(paths))
+        revs: List[str] = []
+        data: List[bytes] = []
+        for rev, datum in self._get_files(paths):
+            revs.append(rev)
+            data.append(datum)
         refs = []
-        for path, rev, data in zip(paths, revs, data):
+        for path, rev, datum in zip(paths, revs, data):
             name = self._ref_name_from_path(path)
-            sha = data.decode("utf8").strip()
+            sha = datum.decode("utf8").strip()
             self._refs[name] = (rev, sha)
             refs.append((sha, name))
         return refs
 
-    def write_symbolic_ref(self, path, ref, rev=None):
+    def write_symbolic_ref(self, path: str, ref: str, rev: Optional[str] = None) -> bool:
         """
         Write the given symbolic ref to the remote.
 
@@ -513,7 +520,7 @@ class Helper(object):
         data = ("ref: %s\n" % ref).encode("utf8")
         self._trace("writing symbolic ref %s with mode %s" % (path, mode))
         try:
-            self._connection().files_upload(data, path, mode, mute=True)
+            self._connection.files_upload(data, path, mode, mute=True)
             return True
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
@@ -521,7 +528,7 @@ class Helper(object):
             return False
         return True
 
-    def read_symbolic_ref(self, path):
+    def read_symbolic_ref(self, path: str) -> Optional[Tuple[str, str]]:
         """
         Return the revision number and content of a given symbolic ref on the remote.
 
@@ -530,7 +537,7 @@ class Helper(object):
         path = posixpath.join(self._path, path)
         self._trace("fetching symbolic ref: %s" % path)
         try:
-            meta, resp = self._connection().files_download(path)
+            meta, resp = self._connection.files_download(path)
             ref = resp.content.decode("utf8")
             ref = ref[len("ref: ") :].rstrip()
             rev = meta.rev
@@ -539,3 +546,13 @@ class Helper(object):
             if not isinstance(e.error, dropbox.files.DownloadError):
                 raise
             return None
+
+
+def _write(message: Optional[str] = None) -> None:
+    """
+    Write a message to standard output.
+    """
+    if message is not None:
+        stdout("%s\n" % message)
+    else:
+        stdout("\n")

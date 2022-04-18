@@ -36,85 +36,50 @@ concurrent operations, even when using a shared folder.
 
 ## Setup
 
-### A. Get access token from Dropbox
-
-1. Go to the Dropbox [app console](https://www.dropbox.com/developers/apps) (may require login).
-
-2. Click "Create app".
-
-3. Select "Scoped access" (you don't have a choice).
-
-4. Select "Full Dropbox".
-
-5. Name your app (e.g. "Git Remote"; you need a unique name, but it doesn't matter what name you choose).
-
-6. Click "Create app". You will now see a configuration page. Make sure you are on the "Settings" tab.
-
-7. Scroll down to the "OAuth 2" section, and change the "Access token expiration" to "No expiration".
-
-8. On the "Permissions" tab, under "Files and folders" select `files.metadata.write` (which also selects `files.metadata.read`), `files.content.write`, and `files.content.read`. Click "Submit" at the bottom. (You must make sure to do this _before_ the next step, because changing permissions does not affect existing access tokens.)
-
-9. Back on the "Settings" tab, click "Generate" under the "Generated access token" heading. Copy the generated token token. Note that it is longer than the display, so exercise care in copying _all_ of it. Save the token in either `~/.config/git/git-remote-dropbox.json` or `~/.git-remote-dropbox.json`. The file looks like:
-   ```json
-   {
-      "default": "xxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-   }
-   ```
-
-### B. Local software installation
+### Install git-remote-dropbox
 
 1. Prerequisites:
    1. `python` and matching `pip`
    2. `git`
 2. Install this package with `pip install git-remote-dropbox`. Use `which git-remote-dropbox` to make sure it's available via `$PATH`. If not, edit `$PATH` appropriately.
-3. Add an alias for the manager tool with `git config --global alias.dropbox '!git-dropbox-manage'`.
 
-### __Note about access tokens__
+### Log in to Dropbox
 
-1. The access token you have will now enable access to your entire Dropbox, from any machine. It is valid until you either delete the app or regenerate the access token. Keep this token a secret. In particular, you should **NOT** share this for making a shared repo (see [Sharing](#sharing) below for the right way to do that).
-
-2. If you have multiple Dropbox accounts, this token will access only the one that was logged in when you created the Dropbox app. You can specify alternate ones in the config file and reference them via the pathname (see [Multiple Accounts](#multiple-accounts) below).
+Run `git dropbox login` and follow the instructions to authenticate with OAuth
+and log in to your Dropbox account.
 
 ## Sharing
 
-The above gives you a way to create a Git repository on Dropbox and use it from multiple machines that you own (that have the access token). In other words, it's a convenient way to share a remote with your laptop and your desktop.
+The above gives you a way to create a Git repository on Dropbox and use it from multiple machines that you own. In other words, it's a convenient way to share a remote with your laptop and your desktop.
 
-If you want to share with other people, you should explicitly share (e.g. via the Dropbox website) the root folder of the repo with your collaborators. Then they should follow steps (A) and (B) above to generate their own access token to use `git-remote-dropbox`. **Collaborators do not need _your_ access token.**
+If you want to share with other people, you should explicitly share (e.g. via the Dropbox website) the root folder of the repo with your collaborators. Then they should also install git-remote-dropbox and log in *with their own account*.
 
 ## Multiple Accounts
 
-`git-remote-dropbox` supports using multiple Dropbox accounts. You can create
-OAuth tokens for different accounts and add them all to the config file, using
-a user-defined username as the key:
+git-remote-dropbox supports using multiple Dropbox accounts. You can have named
+accounts with `git dropbox login <username>`. **These usernames are unrelated
+to your Dropbox login; you can choose whatever names you want to organize your
+accounts, e.g. "work".**
 
-```json
-{
-    "alice": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx",
-    "ben": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx",
-    "charlie": "xxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxx"
-}
-```
-
-You can tell `git-remote-dropbox` to use the token corresponding to `username` by
-specifying a URL like `dropbox://username@/path/to/repo`.
-
-You can also specify the token inline by using a URL like
-`dropbox://:token@/path/to/repo`.
+You can tell git-remote-dropbox to use a particular account by setting the git
+remote URL appropriately, specifying a username like:
+`dropbox://username@/path/to/repo`.
 
 ## Repository Manager
 
-In addition to the git remote helper, `git-remote-dropbox` comes with an
-additional tool to manage repositories on Dropbox. This tool can be invoked as
-`git-dropbox-manage`. You can also create an alias for it with the following:
+In addition to the git remote helper, git-remote-dropbox comes with an
+additional tool to manage your logins and repositories on Dropbox. This tool
+can be invoked as `git dropbox`.
 
-```bash
-git config --global alias.dropbox '!git-dropbox-manage'
-```
+The tool supports the following commands:
 
-With this configuration, the tool can be invoked as `git dropbox`.
-
-Currently the tool supports a single subcommand, `git dropbox set-head <remote>
-<branch>`, that can be used to set the default branch on the remote.
+- `git dropbox login [username]`: log in, either with the default account (no
+  need to specify a username in remote), or with an alias (for multi-account
+  support)
+- `git dropbox logout [username]`: log out
+- `git dropbox show-logins`: list logged-in accounts
+- `git dropbox set-head <remote> <branch>`: set default branch on the remote
+- `git dropbox version`: show version
 
 ## Notes
 
@@ -136,7 +101,7 @@ Currently the tool supports a single subcommand, `git dropbox set-head <remote>
 - If the remote HEAD (default branch on the remote) is not set, after cloning a
   repository from Dropbox, Git will not automatically check out a branch. To
   check out a branch, run `git checkout <branch>`. To set the default branch on
-  the remote, use the [git-dropbox-manage](#repository-manager) command.
+  the remote, use the [`git dropbox`](#repository-manager) command.
 
 ## FAQ
 
@@ -196,5 +161,5 @@ information on what you can do about that.
 
 ## License
 
-Copyright (c) 2015-2021 Anish Athalye. Released under the MIT License. See
+Copyright (c) 2015-2022 Anish Athalye. Released under the MIT License. See
 [LICENSE.md](LICENSE.md) for details.
