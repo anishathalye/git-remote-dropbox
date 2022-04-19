@@ -282,12 +282,12 @@ class Helper:
         path = self._object_path(sha)
         self._trace("writing: %s" % path)
         retries = 0
-        mode = dropbox.files.WriteMode("overwrite")
+        mode = dropbox.files.WriteMode.overwrite
 
         if len(data) <= CHUNK_SIZE:
             while True:
                 try:
-                    self._connection.files_upload(data, path, mode, mute=True)
+                    self._connection.files_upload(data, path, mode, strict_conflict=True, mute=True)
                 except dropbox.exceptions.InternalServerError:
                     self._trace("internal server error writing %s, retrying" % sha)
                     if retries < MAX_RETRIES:
@@ -314,7 +314,9 @@ class Helper:
                         self._connection.files_upload_session_append_v2(chunk, cursor)
                     else:
                         # upload the last chunk
-                        commit_info = dropbox.files.CommitInfo(path, mode, mute=True)
+                        commit_info = dropbox.files.CommitInfo(
+                            path, mode, strict_conflict=True, mute=True
+                        )
                         self._connection.files_upload_session_finish(chunk, cursor, commit_info)
                         done_uploading = True
 
@@ -434,7 +436,7 @@ class Helper:
         path = self._ref_path(dst)
         if force:
             # overwrite regardless of what is there before
-            mode = dropbox.files.WriteMode("overwrite")
+            mode = dropbox.files.WriteMode.overwrite
         else:
             info = self._refs.get(dst, None)
             if info:
@@ -449,11 +451,11 @@ class Helper:
             else:
                 # perform an atomic add, which fails if a concurrent writer
                 # writes before this does
-                mode = dropbox.files.WriteMode("add")
+                mode = dropbox.files.WriteMode.add
         self._trace("writing ref %s with mode %s" % (dst, mode))
         data = ("%s\n" % new_sha).encode("utf8")
         try:
-            self._connection.files_upload(data, path, mode, mute=True)
+            self._connection.files_upload(data, path, mode, strict_conflict=True, mute=True)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
                 raise
@@ -516,11 +518,11 @@ class Helper:
             mode = dropbox.files.WriteMode.update(rev)
         else:
             # atomic add
-            mode = dropbox.files.WriteMode("add")
+            mode = dropbox.files.WriteMode.add
         data = ("ref: %s\n" % ref).encode("utf8")
         self._trace("writing symbolic ref %s with mode %s" % (path, mode))
         try:
-            self._connection.files_upload(data, path, mode, mute=True)
+            self._connection.files_upload(data, path, mode, strict_conflict=True, mute=True)
             return True
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
