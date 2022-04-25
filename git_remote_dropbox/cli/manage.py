@@ -76,7 +76,7 @@ def set_head(remote: str, branch: str) -> None:
 
     remote_ref = "refs/heads/%s" % branch
 
-    def branch_exists():
+    def branch_exists() -> bool:
         refs = helper.get_refs(False)
         for _, name in refs:
             if name == remote_ref:

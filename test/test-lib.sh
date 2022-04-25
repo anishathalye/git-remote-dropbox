@@ -35,6 +35,7 @@ setup_env() {
     export GIT_AUTHOR_NAME='Author'
     export GIT_COMMITTER_EMAIL=committer@example.com
     export GIT_COMMITTER_NAME='Committer'
+    git config --global init.defaultBranch master
     local RANDOM_STR="$(< /dev/urandom tr -dc A-Za-z0-9 | head -c${1:-16})"
     REPO_DIR="git-remote-dropbox-test/${RANDOM_STR}"
     TMP_DIR=$(mktemp -d)

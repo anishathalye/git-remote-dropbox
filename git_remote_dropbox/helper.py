@@ -22,7 +22,7 @@ import multiprocessing.pool
 import posixpath
 import sys
 import threading
-from typing import Optional, NoReturn, Tuple, Dict, List, Set
+from typing import Optional, Union, NoReturn, Tuple, Dict, List, Set
 
 try:
     # Importing synchronize is to detect platforms where
@@ -30,7 +30,7 @@ try:
     # and cause an ImportError. Otherwise it will happen
     # later when trying to use Queue().
     from multiprocessing import synchronize as _
-    from multiprocessing import Queue  # type: ignore
+    from multiprocessing import Queue
 except ImportError:
     from queue import Queue  # type: ignore
 
@@ -272,7 +272,7 @@ class Helper:
         Return a list of (revision number, content) for a given list of files.
         """
         pool = multiprocessing.dummy.Pool(self._processes)
-        return pool.map(self._get_file, paths)
+        return pool.map(self._get_file, paths)  # type: ignore
 
     def _put_object(self, sha: str) -> None:
         """
@@ -337,7 +337,9 @@ class Helper:
                     else:
                         raise
 
-    def _download(self, input_queue: Queue, output_queue: Queue) -> None:
+    def _download(
+        self, input_queue: "Queue[Union[str, Poison]]", output_queue: "Queue[Union[str, Poison]]"
+    ) -> None:
         """
         Download files given in input_queue and push results to output_queue.
         """
@@ -362,8 +364,8 @@ class Helper:
         queue = [sha]
         pending: Set[str] = set()
         downloaded: Set[str] = set()
-        input_queue: Queue = Queue()  # requesting downloads
-        output_queue: Queue = Queue()  # completed downloads
+        input_queue: "Queue[Union[str, Poison]]" = Queue()  # requesting downloads
+        output_queue: "Queue[Union[str, Poison]]" = Queue()  # completed downloads
         procs = []
         for _ in range(self._processes):
             target = Binder(self, "_download")
