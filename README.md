@@ -147,6 +147,16 @@ You can use git-remote-dropbox from behind a proxy server by setting the
 [here](http://docs.python-requests.org/en/latest/user/advanced/#proxies) for
 more details.
 
+**How do I use git-remote-dropbox with submodules?**
+
+You can allow this by setting
+[`protocol.dropbox.allow`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-protocolltnamegtallow)
+to `always`:
+
+```bash
+git config --global --add protocol.dropbox.allow always
+```
+
 ## Design
 
 To read about the design of git-remote-dropbox, see [DESIGN.md](DESIGN.md).
