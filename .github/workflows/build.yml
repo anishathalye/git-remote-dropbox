@@ -5,15 +5,15 @@ on:
     - cron: '0 8 * * 6'
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     environment: main
     strategy:
       matrix:
-        python: ["3.6", "3.7", "3.8", "3.9", "3.10", "pypy3"]
+        python: ["3.6", "3.7", "3.8", "3.9", "3.10", "pypy3.9"]
     name: "Test: Python ${{ matrix.python }}"
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - run: |
@@ -24,17 +24,17 @@ jobs:
           DROPBOX_TOKEN: ${{ secrets.DROPBOX_TOKEN }}
   typecheck:
     name: Type check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
       - run: |
           python -m pip install --upgrade pip
           pip install mypy
       - run: mypy --strict git_remote_dropbox
   fmt:
     name: Format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: psf/black@stable
