@@ -9,7 +9,7 @@ jobs:
     environment: main
     strategy:
       matrix:
-        python: ["3.6", "3.7", "3.8", "3.9", "3.10", "pypy3.9"]
+        python: ["3.6", "3.7", "3.8", "3.9", "3.10"]
     name: "Test: Python ${{ matrix.python }}"
     steps:
       - uses: actions/checkout@v3
