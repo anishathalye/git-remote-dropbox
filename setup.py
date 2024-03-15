@@ -50,7 +50,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "dropbox>=11,<12",
-        "setuptools>=69,<70",
+        "setuptools",
     ],
     entry_points={
         "console_scripts": [
