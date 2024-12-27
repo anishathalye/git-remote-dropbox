@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import dropbox
-
-import sys
 import os
+import sys
+
+import dropbox  # type: ignore
 
 
-def main(path):
+def main(path: str) -> None:
     token = os.environ["DROPBOX_TOKEN"]
     connection = dropbox.Dropbox(token)
     try:

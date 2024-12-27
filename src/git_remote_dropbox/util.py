@@ -1,14 +1,15 @@
-from git_remote_dropbox.constants import APP_KEY
-
-import dropbox  # type: ignore
-
+import contextlib
 import json
 import os
 import sys
 import tempfile
-from typing import Optional, Any, Dict
 from abc import ABC, abstractmethod
 from enum import IntEnum
+from typing import Any, Dict, Optional
+
+import dropbox  # type: ignore
+
+from git_remote_dropbox.constants import APP_KEY
 
 
 def stdout(line: str) -> None:
@@ -77,12 +78,12 @@ class Binder:
     For example, Binder can be used as follows:
 
         >>> class A(object):
-        ...   def __init__(self, x):
-        ...     self.x = x
-        ...   def add(self, y, z):
-        ...     return self.x + y + z
+        ...     def __init__(self, x):
+        ...         self.x = x
         ...
-        >>> b = Binder(A(1), 'add', 2)
+        ...     def add(self, y, z):
+        ...         return self.x + y + z
+        >>> b = Binder(A(1), "add", 2)
         >>> b(3)
         6
 
@@ -140,11 +141,12 @@ class RefreshToken(Token):
     def parse(cls, rep: Any) -> "RefreshToken":
         if (
             not isinstance(rep, list)
-            or not len(rep) == 2
-            or not rep[0] == "refresh"
+            or len(rep) != 2  # noqa: PLR2004
+            or rep[0] != "refresh"
             or not isinstance(rep[1], str)
         ):
-            raise ValueError("cannot parse as RefreshToken")
+            msg = "cannot parse as RefreshToken"
+            raise ValueError(msg)
         return RefreshToken(rep[1])
 
     def connect(self) -> dropbox.Dropbox:
@@ -164,11 +166,12 @@ class LongLivedToken(Token):
     def parse(cls, rep: Any) -> "LongLivedToken":
         if (
             not isinstance(rep, list)
-            or not len(rep) == 2
-            or not rep[0] == "long-lived"
+            or len(rep) != 2  # noqa: PLR2004
+            or rep[0] != "long-lived"
             or not isinstance(rep[1], str)
         ):
-            raise ValueError("cannot parse as LongLivedToken")
+            msg = "cannot parse as LongLivedToken"
+            raise ValueError(msg)
         return LongLivedToken(rep[1])
 
     def connect(self) -> dropbox.Dropbox:
@@ -176,13 +179,13 @@ class LongLivedToken(Token):
 
 
 def parse_token(rep: Any) -> Token:
-    for TokenType in [RefreshToken, LongLivedToken]:
+    for token_type in [RefreshToken, LongLivedToken]:
         try:
-            token = TokenType.parse(rep)
-            return token
+            return token_type.parse(rep)
         except ValueError:
             continue
-    raise ValueError('cannot parse "%s" as a token' % rep)
+    msg = f'cannot parse "{rep}" as a token'
+    raise ValueError(msg)
 
 
 class Config:
@@ -196,7 +199,7 @@ class Config:
     _default_token: Optional[Token]
     _named_tokens: Dict[str, Token]
 
-    def __init__(self, filename: str, create: bool = False) -> None:
+    def __init__(self, filename: str, *, create: bool = False) -> None:
         self._filename = filename
         self._default_token = None
         self._named_tokens = {}
@@ -273,7 +276,5 @@ def atomic_write(contents: bytes, path: str) -> None:
         temp_file.close()  # necessary on Windows because we can't move an open file
         os.replace(temp_file.name, path)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             os.unlink(temp_file.name)
-        except Exception:
-            pass

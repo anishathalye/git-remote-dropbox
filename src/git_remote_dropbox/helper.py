@@ -1,36 +1,36 @@
-from git_remote_dropbox.constants import (
-    PROCESSES,
-    CHUNK_SIZE,
-    MAX_RETRIES,
-)
-from git_remote_dropbox.util import (
-    readline,
-    Level,
-    stdout,
-    stderr,
-    Binder,
-    Poison,
-    Token,
-)
-from git_remote_dropbox import git
-
-import dropbox  # type: ignore
-
 import multiprocessing
 import multiprocessing.dummy
 import multiprocessing.pool
 import posixpath
 import sys
 import threading
-from typing import Optional, Union, NoReturn, Tuple, Dict, List, Set
+from typing import Dict, List, NoReturn, Optional, Set, Tuple, Union
+
+import dropbox  # type: ignore
+
+from git_remote_dropbox import git
+from git_remote_dropbox.constants import (
+    CHUNK_SIZE,
+    MAX_RETRIES,
+    PROCESSES,
+)
+from git_remote_dropbox.util import (
+    Binder,
+    Level,
+    Poison,
+    Token,
+    readline,
+    stderr,
+    stdout,
+)
 
 try:
     # Importing synchronize is to detect platforms where
     # multiprocessing does not work (python issue 3770)
     # and cause an ImportError. Otherwise it will happen
     # later when trying to use Queue().
-    from multiprocessing import synchronize as _
     from multiprocessing import Queue
+    from multiprocessing import synchronize as _  # noqa: F401
 except ImportError:
     from queue import Queue  # type: ignore
 
@@ -54,7 +54,7 @@ class Helper:
     def verbosity(self) -> Level:
         return self._verbosity
 
-    def _trace(self, message: str, level: Level = Level.DEBUG, exact: bool = False) -> None:
+    def _trace(self, message: str, level: Level = Level.DEBUG, *, exact: bool = False) -> None:
         """
         Log a message with a given severity level.
         """
@@ -65,11 +65,11 @@ class Helper:
                 stderr(message)
             return
         if level <= Level.ERROR:
-            stderr("error: %s\n" % message)
+            stderr(f"error: {message}\n")
         elif level == Level.INFO:
-            stderr("info: %s\n" % message)
+            stderr(f"info: {message}\n")
         elif level >= Level.DEBUG:
-            stderr("debug: %s\n" % message)
+            stderr(f"debug: {message}\n")
 
     def _fatal(self, message: str) -> NoReturn:
         """
@@ -111,7 +111,7 @@ class Helper:
             elif line == "":
                 break
             else:
-                self._fatal("unsupported operation: %s" % line)
+                self._fatal(f"unsupported operation: {line}")
 
     def _do_option(self, line: str) -> None:
         """
@@ -130,11 +130,11 @@ class Helper:
         for_push = "for-push" in line
         refs = self.get_refs(for_push=for_push)
         for sha, ref in refs:
-            _write("%s %s" % (sha, ref))
+            _write(f"{sha} {ref}")
         if not for_push:
             head = self.read_symbolic_ref("HEAD")
             if head:
-                _write("@%s HEAD" % head[1])
+                _write(f"@{head[1]} HEAD")
             else:
                 self._trace("no default branch on remote", Level.INFO)
         _write()
@@ -150,9 +150,8 @@ class Helper:
                 self._delete(dst)
             else:
                 self._push(src, dst)
-                if self._first_push:
-                    if not remote_head or src == git.symbolic_ref("HEAD"):
-                        remote_head = dst
+                if self._first_push and (not remote_head or src == git.symbolic_ref("HEAD")):
+                    remote_head = dst
             line = readline()
             if line == "":
                 if self._first_push:
@@ -181,10 +180,10 @@ class Helper:
         """
         Delete the ref from the remote.
         """
-        self._trace("deleting ref %s" % ref)
+        self._trace(f"deleting ref {ref}")
         head = self.read_symbolic_ref("HEAD")
         if head and ref == head[1]:
-            _write("error %s refusing to delete the current branch: %s" % (ref, head))
+            _write(f"error {ref} refusing to delete the current branch: {head[1]}")
             return
         try:
             self._connection.files_delete(self._ref_path(ref))
@@ -194,7 +193,7 @@ class Helper:
             # someone else might have deleted it first, that's fine
         self._refs.pop(ref, None)  # discard
         self._pushed.pop(ref, None)  # discard
-        _write("ok %s" % ref)
+        _write(f"ok {ref}")
 
     def _push(self, src: str, dst: str) -> None:
         """
@@ -217,36 +216,39 @@ class Helper:
             self._trace("", level=Level.INFO, exact=True)
             for done, _ in enumerate(res, 1):
                 pct = int(float(done) / total * 100)
-                message = "\rWriting objects: {:3.0f}% ({}/{})".format(pct, done, total)
+                message = f"\rWriting objects: {pct:3.0f}% ({done}/{total})"
                 if done == total:
-                    message = "%s, done.\n" % message
+                    message = "{message}, done.\n"
                 self._trace(message, level=Level.INFO, exact=True)
         except Exception:
             if self.verbosity >= Level.DEBUG:
                 raise  # re-raise exception so it prints out a stack trace
-            else:
-                self._fatal("exception while writing objects (run with -v for details)\n")
+            self._fatal("exception while writing objects (run with -v for details)\n")
         sha = git.ref_value(src)
-        error = self._write_ref(sha, dst, force)
+        error = self._write_ref(sha, dst, force=force)
         if error is None:
-            _write("ok %s" % dst)
+            _write(f"ok {dst}")
             self._pushed[dst] = sha
         else:
-            _write("error %s %s" % (dst, error))
+            _write(f"error {dst} {error}")
 
     def _ref_path(self, name: str) -> str:
         """
         Return the path to the given ref on the remote.
         """
-        assert name.startswith("refs/")
+        if not name.startswith("refs/"):
+            msg = f"invalid ref name: {name}"
+            raise ValueError(msg)
         return posixpath.join(self._path, name)
 
     def _ref_name_from_path(self, path: str) -> str:
         """
         Return the ref name given the full path of the remote ref.
         """
-        prefix = "%s/" % self._path
-        assert path.startswith(prefix)
+        prefix = f"{self._path}/"
+        if not path.startswith(prefix):
+            msg = f"invalid ref path: {path}"
+            raise ValueError(msg)
         return path[len(prefix) :]
 
     def _object_path(self, name: str) -> str:
@@ -263,7 +265,7 @@ class Helper:
 
         Return a tuple (revision, content).
         """
-        self._trace("fetching: %s" % path)
+        self._trace(f"fetching: {path}")
         meta, resp = self._connection.files_download(path)
         return (meta.rev, resp.content)
 
@@ -280,7 +282,7 @@ class Helper:
         """
         data = git.encode_object(sha)
         path = self._object_path(sha)
-        self._trace("writing: %s" % path)
+        self._trace(f"writing: {path}")
         retries = 0
         mode = dropbox.files.WriteMode.overwrite
 
@@ -289,7 +291,7 @@ class Helper:
                 try:
                     self._connection.files_upload(data, path, mode, strict_conflict=True, mute=True)
                 except dropbox.exceptions.InternalServerError:
-                    self._trace("internal server error writing %s, retrying" % sha)
+                    self._trace(f"internal server error writing {sha}, retrying")
                     if retries < MAX_RETRIES:
                         retries += 1
                     else:
@@ -314,9 +316,7 @@ class Helper:
                         self._connection.files_upload_session_append_v2(chunk, cursor)
                     else:
                         # upload the last chunk
-                        commit_info = dropbox.files.CommitInfo(
-                            path, mode, strict_conflict=True, mute=True
-                        )
+                        commit_info = dropbox.files.CommitInfo(path, mode, strict_conflict=True, mute=True)
                         self._connection.files_upload_session_finish(chunk, cursor, commit_info)
                         done_uploading = True
 
@@ -324,22 +324,20 @@ class Helper:
                     cursor.offset = end
 
                 except dropbox.files.UploadSessionOffsetError as offset_error:
-                    self._trace("offset error writing %s, retrying" % sha)
+                    self._trace(f"offset error writing {sha}, retrying")
                     cursor.offset = offset_error.correct_offset
                     if retries < MAX_RETRIES:
                         retries += 1
                     else:
                         raise
                 except dropbox.exceptions.InternalServerError:
-                    self._trace("internal server error writing %s, retrying" % sha)
+                    self._trace(f"internal server error writing {sha}, retrying")
                     if retries < MAX_RETRIES:
                         retries += 1
                     else:
                         raise
 
-    def _download(
-        self, input_queue: "Queue[Union[str, Poison]]", output_queue: "Queue[Union[str, Poison]]"
-    ) -> None:
+    def _download(self, input_queue: "Queue[Union[str, Poison]]", output_queue: "Queue[Union[str, Poison]]") -> None:
         """
         Download files given in input_queue and push results to output_queue.
         """
@@ -351,10 +349,10 @@ class Helper:
                 _, data = self._get_file(self._object_path(obj))
                 computed_sha = git.decode_object(data)
                 if computed_sha != obj:
-                    output_queue.put(Poison("hash mismatch %s != %s" % (computed_sha, obj)))
+                    output_queue.put(Poison(f"hash mismatch {computed_sha} != {obj}"))
                 output_queue.put(obj)
-            except Exception as e:
-                output_queue.put(Poison("exception while downloading: %s" % e))
+            except Exception as e:  # noqa: BLE001
+                output_queue.put(Poison(f"exception while downloading: {e}"))
 
     def _fetch(self, sha: str) -> None:
         """
@@ -364,8 +362,8 @@ class Helper:
         queue = [sha]
         pending: Set[str] = set()
         downloaded: Set[str] = set()
-        input_queue: "Queue[Union[str, Poison]]" = Queue()  # requesting downloads
-        output_queue: "Queue[Union[str, Poison]]" = Queue()  # completed downloads
+        input_queue: Queue[Union[str, Poison]] = Queue()  # requesting downloads
+        output_queue: Queue[Union[str, Poison]] = Queue()  # completed downloads
         procs = []
         for _ in range(self._processes):
             target = Binder(self, "_download")
@@ -394,10 +392,10 @@ class Helper:
                     if not git.history_exists(sha):
                         # this can only happen in the case of aborted fetches
                         # that are resumed later
-                        self._trace("missing part of history from %s" % sha)
+                        self._trace(f"missing part of history from {sha}")
                         queue.extend(git.referenced_objects(sha))
                     else:
-                        self._trace("%s already downloaded" % sha)
+                        self._trace(f"{sha} already downloaded")
                 else:
                     pending.add(sha)
                     input_queue.put(sha)
@@ -406,7 +404,9 @@ class Helper:
                 res = output_queue.get()
                 if isinstance(res, Poison):
                     # _download never puts Poison with an empty message in the output_queue
-                    assert res.message is not None
+                    if res.message is None:
+                        msg = "invalid Poison with no message"
+                        raise ValueError(msg)
                     self._fatal(res.message)
                 pending.remove(res)
                 downloaded.add(res)
@@ -415,20 +415,20 @@ class Helper:
                 done = len(downloaded)
                 total = done + len(pending)
                 pct = int(float(done) / total * 100)
-                message = "\rReceiving objects: {:3.0f}% ({}/{})".format(pct, done, total)
+                message = f"\rReceiving objects: {pct:3.0f}% ({done}/{total})"
                 self._trace(message, level=Level.INFO, exact=True)
         if total:
             self._trace(
-                "\rReceiving objects: 100% ({}/{}), done.\n".format(done, total),
+                f"\rReceiving objects: 100% ({done}/{total}), done.\n",
                 level=Level.INFO,
                 exact=True,
             )
-        for proc in procs:
+        for _ in procs:
             input_queue.put(Poison())
         for proc in procs:
             proc.join()
 
-    def _write_ref(self, new_sha: str, dst: str, force: bool = False) -> Optional[str]:
+    def _write_ref(self, new_sha: str, dst: str, *, force: bool = False) -> Optional[str]:
         """
         Atomically update the given reference to point to the given object.
 
@@ -454,8 +454,8 @@ class Helper:
                 # perform an atomic add, which fails if a concurrent writer
                 # writes before this does
                 mode = dropbox.files.WriteMode.add
-        self._trace("writing ref %s with mode %s" % (dst, mode))
-        data = ("%s\n" % new_sha).encode("utf8")
+        self._trace(f"writing ref {dst} with mode {mode}")
+        data = f"{new_sha}\n".encode()
         try:
             self._connection.files_upload(data, path, mode, strict_conflict=True, mute=True)
         except dropbox.exceptions.ApiError as e:
@@ -465,7 +465,7 @@ class Helper:
         else:
             return None
 
-    def get_refs(self, for_push: bool) -> List[Tuple[str, str]]:
+    def get_refs(self, *, for_push: bool) -> List[Tuple[str, str]]:
         """
         Return the refs present on the remote.
 
@@ -515,17 +515,12 @@ class Helper:
         Return a boolean indicating whether the write was successful.
         """
         path = posixpath.join(self._path, path)
-        if rev:
-            # atomic compare-and-swap
-            mode = dropbox.files.WriteMode.update(rev)
-        else:
-            # atomic add
-            mode = dropbox.files.WriteMode.add
-        data = ("ref: %s\n" % ref).encode("utf8")
-        self._trace("writing symbolic ref %s with mode %s" % (path, mode))
+        # choose between atomic compare-and-swap and atomic add
+        mode = dropbox.files.WriteMode.update(rev) if rev else dropbox.files.WriteMode.add
+        data = f"ref: {ref}\n".encode()
+        self._trace(f"writing symbolic ref {path} with mode {mode}")
         try:
             self._connection.files_upload(data, path, mode, strict_conflict=True, mute=True)
-            return True
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.UploadError):
                 raise
@@ -539,17 +534,17 @@ class Helper:
         Return a tuple (revision, content), or None if the symbolic ref does not exist.
         """
         path = posixpath.join(self._path, path)
-        self._trace("fetching symbolic ref: %s" % path)
+        self._trace(f"fetching symbolic ref: {path}")
         try:
             meta, resp = self._connection.files_download(path)
-            ref = resp.content.decode("utf8")
-            ref = ref[len("ref: ") :].rstrip()
-            rev = meta.rev
-            return (rev, ref)
         except dropbox.exceptions.ApiError as e:
             if not isinstance(e.error, dropbox.files.DownloadError):
                 raise
             return None
+        ref = resp.content.decode("utf8")
+        ref = ref[len("ref: ") :].rstrip()
+        rev = meta.rev
+        return (rev, ref)
 
 
 def _write(message: Optional[str] = None) -> None:
@@ -557,6 +552,6 @@ def _write(message: Optional[str] = None) -> None:
     Write a message to standard output.
     """
     if message is not None:
-        stdout("%s\n" % message)
+        stdout(f"{message}\n")
     else:
         stdout("\n")

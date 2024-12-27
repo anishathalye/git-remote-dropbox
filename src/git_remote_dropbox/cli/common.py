@@ -1,21 +1,21 @@
-from git_remote_dropbox.util import (
-    Config,
-    stderr,
-    Token,
-    LongLivedToken,
-)
-from git_remote_dropbox.helper import Helper
-
-import dropbox  # type: ignore
-
-import sys
 import os
+import sys
 from typing import NoReturn
 from urllib.parse import urlparse
 
+import dropbox  # type: ignore
+
+from git_remote_dropbox.helper import Helper
+from git_remote_dropbox.util import (
+    Config,
+    LongLivedToken,
+    Token,
+    stderr,
+)
+
 
 def error(msg: str) -> NoReturn:
-    stderr("error: %s\n" % msg)
+    stderr(f"error: {msg}\n")
     sys.exit(1)
 
 
@@ -71,7 +71,7 @@ def get_helper(url: str) -> Helper:
     elif parsed.username:
         t = config.get_named_token(parsed.username)
         if not t:
-            error("you must log in first with 'git dropbox login %s'" % parsed.username)
+            error(f"you must log in first with 'git dropbox login {parsed.username}'")
         token = t
     else:
         t = config.get_default_token()
@@ -86,10 +86,7 @@ def get_helper(url: str) -> Helper:
                 "invalid inline legacy access token, try switching to short-lived access tokens with 'git dropbox login'"
             )
         elif parsed.username:
-            error(
-                "invalid access token, try logging in again with 'git dropbox login %s'"
-                % parsed.username
-            )
+            error(f"invalid access token, try logging in again with 'git dropbox login {parsed.username}'")
         else:
             error("invalid access token, try logging in again with 'git dropbox login'")
 

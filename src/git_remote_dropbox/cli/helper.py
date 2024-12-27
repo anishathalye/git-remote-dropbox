@@ -1,13 +1,13 @@
-from git_remote_dropbox.util import (
-    Level,
-    stdout_to_binary,
-)
+import sys
+
 from git_remote_dropbox.cli.common import (
     error,
     get_helper,
 )
-
-import sys
+from git_remote_dropbox.util import (
+    Level,
+    stdout_to_binary,
+)
 
 
 def main() -> None:
@@ -24,8 +24,7 @@ def main() -> None:
     except Exception:
         if helper.verbosity >= Level.DEBUG:
             raise  # re-raise exception so it prints out a stack trace
-        else:
-            error("unexpected exception (run with -v for details)")
+        error("unexpected exception (run with -v for details)")
     except KeyboardInterrupt:
         # exit silently with an error code
         sys.exit(1)

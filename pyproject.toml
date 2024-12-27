@@ -1,11 +1,53 @@
-[tool.black]
-line-length = 100
-exclude = '''
-/(
-   \.git
- | \.github
- | .*\.egg-info
- | build
- | dist
- )/
-'''
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "git-remote-dropbox"
+authors = [
+  { name = "Anish Athalye", email = "me@anishathalye.com" },
+]
+description = "A transparent bidirectional bridge between Git and Dropbox"
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Version Control",
+]
+keywords = ["git", "dropbox"]
+dynamic = ["version"]
+dependencies = [
+  "dropbox>=12,<13"
+]
+
+[project.scripts]
+git-remote-dropbox = "git_remote_dropbox.cli.helper:main"
+git-dropbox = "git_remote_dropbox.cli.manage:main"
+# Users might have a `git dropbox` alias set up for `git-dropbox-manage`,
+# according to the old instructions. Don't break their config.
+git-dropbox-manage = "git_remote_dropbox.cli.manage:main"
+
+[project.urls]
+homepage = "https://github.com/anishathalye/git-remote-dropbox"
+repository = "https://github.com/anishathalye/git-remote-dropbox.git"
+issues = "https://github.com/anishathalye/git-remote-dropbox/issues"
+
+[tool.hatch.version]
+path = "src/git_remote_dropbox/__init__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --strict --install-types --non-interactive {args:src tests}"
+
+[tool.ruff.lint]
+ignore = [
+  "FA100",
+  "T201",
+]

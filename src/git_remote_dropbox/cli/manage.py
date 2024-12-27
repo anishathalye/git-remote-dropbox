@@ -1,19 +1,18 @@
-import git_remote_dropbox
-from git_remote_dropbox import constants
-from git_remote_dropbox import git
-from git_remote_dropbox.util import RefreshToken, LongLivedToken
-from git_remote_dropbox.cli.common import (
-    error,
-    get_helper,
-    get_config,
-)
-
-import dropbox  # type: ignore
-
 import argparse
 import subprocess
 import sys
 from typing import Optional
+
+import dropbox  # type: ignore
+
+import git_remote_dropbox
+from git_remote_dropbox import constants, git
+from git_remote_dropbox.cli.common import (
+    error,
+    get_config,
+    get_helper,
+)
+from git_remote_dropbox.util import LongLivedToken, RefreshToken
 
 
 def main() -> None:
@@ -29,7 +28,7 @@ def main() -> None:
     parser_set_head.add_argument("remote", type=str, help="name of the remote")
     parser_set_head.add_argument("branch", type=str, help="name of the branch on the remote")
 
-    parser_version = subparsers.add_parser(
+    parser_version = subparsers.add_parser(  # noqa: F841
         "version", help="print the version of git-remote-dropbox"
     )
 
@@ -39,7 +38,7 @@ def main() -> None:
     parser_logout = subparsers.add_parser("logout", help="log out from Dropbox")
     parser_logout.add_argument("username", type=str, help="username/tag", nargs="?", default=None)
 
-    parser_show_logins = subparsers.add_parser(
+    parser_show_logins = subparsers.add_parser(  # noqa: F841
         "show-logins", help="show logged-in accounts and their usernames/tags"
     )
 
@@ -70,26 +69,23 @@ def set_head(remote: str, branch: str) -> None:
     try:
         url = git.get_remote_url(remote)
     except subprocess.CalledProcessError:
-        error("no such remote '%s'" % remote)
+        error(f"no such remote '{remote}'")
         sys.exit(1)
     helper = get_helper(url)
 
-    remote_ref = "refs/heads/%s" % branch
+    remote_ref = f"refs/heads/{branch}"
 
     def branch_exists() -> bool:
-        refs = helper.get_refs(False)
-        for _, name in refs:
-            if name == remote_ref:
-                return True
-        return False
+        refs = helper.get_refs(for_push=False)
+        return any(name == remote_ref for _, name in refs)
 
     # check if target branch exists
     if not branch_exists():
-        error("remote has no such ref '%s'" % remote_ref)
+        error(f"remote has no such ref '{remote_ref}'")
     # get current head
     old_head = helper.read_symbolic_ref("HEAD")
     if old_head and old_head[1] == remote_ref:
-        error("remote HEAD is already '%s'" % remote_ref)
+        error(f"remote HEAD is already '{remote_ref}'")
     rev = old_head[0] if old_head else None
     # write new head
     ok = helper.write_symbolic_ref("HEAD", remote_ref, rev=rev)
@@ -99,24 +95,26 @@ def set_head(remote: str, branch: str) -> None:
     if not branch_exists():
         # this should be a really rare occurrence: have the user fix it up if
         # it happens
-        error("remote ref '%s' was concurrently deleted: remote HEAD needs to be fixed (try again)")
-    print("Updated remote HEAD to '%s'." % remote_ref)
+        error(f"remote ref '{remote_ref}' was concurrently deleted: remote HEAD needs to be fixed (try again)")
+    print(f"Updated remote HEAD to '{remote_ref}'.")
 
 
 def login(username: Optional[str]) -> None:
     auth_flow = dropbox.DropboxOAuth2FlowNoRedirect(
-        constants.APP_KEY, use_pkce=True, token_access_type="offline"
+        constants.APP_KEY,
+        use_pkce=True,
+        token_access_type="offline",  # noqa: S106
     )
     authorize_url = auth_flow.start()
     print("Logging in to Dropbox using OAuth...")
-    print("1. Go to: %s" % authorize_url)
+    print(f"1. Go to: {authorize_url}")
     print('2. Click "Allow" (you might have to log in first)')
     print("3. Copy the authorization code")
     auth_code = input("Enter authorization code: ").strip()
     try:
         oauth_result = auth_flow.finish(auth_code)
         token = RefreshToken(oauth_result.refresh_token)
-    except Exception:
+    except Exception:  # noqa: BLE001
         error("failed to log in; did you copy the code correctly?")
 
     config = get_config()
@@ -126,11 +124,8 @@ def login(username: Optional[str]) -> None:
         config.set_named_token(username, token)
     config.save()
 
-    if username is None:
-        example = "dropbox:///path/to/repo"
-    else:
-        example = "dropbox://%s@/path/to/repo" % username
-    print("Successfully logged in! You can now add Dropbox remotes like '%s'" % example)
+    example = "dropbox:///path/to/repo" if username is None else f"dropbox://{username}@/path/to/repo"
+    print(f"Successfully logged in! You can now add Dropbox remotes like '{example}'")
 
 
 def logout(username: Optional[str]) -> None:
@@ -142,7 +137,7 @@ def logout(username: Optional[str]) -> None:
     else:
         config.delete_named_token(username)
         config.save()
-        print("Logged out %s!" % username)
+        print(f"Logged out {username}!")
 
 
 def show_logins() -> None:
@@ -152,13 +147,13 @@ def show_logins() -> None:
         deprecated = ""
         if isinstance(token, LongLivedToken):
             deprecated = " [deprecated long-lived token]"
-        print("(default user)%s" % deprecated)
+        print(f"(default user){deprecated}")
     for username, token in config.named_tokens().items():
         deprecated = ""
         if isinstance(token, LongLivedToken):
             deprecated = " [deprecated long-lived token]"
-        print("%s%s" % (username, deprecated))
+        print(f"{username}{deprecated}")
 
 
 def version() -> None:
-    print("git-remote-dropbox %s" % git_remote_dropbox.__version__)
+    print(f"git-remote-dropbox {git_remote_dropbox.__version__}")
