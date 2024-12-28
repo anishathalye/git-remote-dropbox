@@ -218,7 +218,7 @@ class Helper:
                 pct = int(float(done) / total * 100)
                 message = f"\rWriting objects: {pct:3.0f}% ({done}/{total})"
                 if done == total:
-                    message = "{message}, done.\n"
+                    message = f"{message}, done.\n"
                 self._trace(message, level=Level.INFO, exact=True)
         except Exception:
             if self.verbosity >= Level.DEBUG:
