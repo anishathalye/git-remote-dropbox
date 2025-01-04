@@ -48,7 +48,11 @@ substantial changes to the code base, it is *highly recommended* that you first
 Any changes to the code base should follow the style and coding conventions
 used in the rest of the project. The version history should be clean, and
 commit messages should be descriptive and [properly
-formatted][commit-messages].
+formatted][commit-messages]. It's recommended that you add unit tests to
+demonstrate that the bug is fixed (or that the feature works).
+
+See the [git-remote-dropbox development guide][development] to learn how to run
+the tests, type checking, and more.
 
 ---
 
@@ -61,3 +65,4 @@ If you have any questions about anything, feel free to [ask][email]!
 [email]: mailto:me@anishathalye.com
 [gitremote-helpers]: https://www.kernel.org/pub/software/scm/git/docs/gitremote-helpers.html
 [commit-messages]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
+[development]: DEVELOPMENT.md
