@@ -150,7 +150,7 @@ class Helper:
                 self._delete(dst)
             else:
                 self._push(src, dst)
-                if self._first_push and (not remote_head or src == git.symbolic_ref("HEAD")):
+                if self._first_push and (not remote_head or src == git.symbolic_ref_value("HEAD")):
                     remote_head = dst
             line = readline()
             if line == "":
