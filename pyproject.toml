@@ -38,9 +38,13 @@ issues = "https://github.com/anishathalye/git-remote-dropbox/issues"
 [tool.hatch.version]
 path = "src/git_remote_dropbox/__init__.py"
 
+[tool.hatch.envs.default]
+installer = "uv"
+
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
+  "pip",
 ]
 
 [tool.hatch.envs.types.scripts]
