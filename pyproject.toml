@@ -44,11 +44,10 @@ installer = "uv"
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
-  "pip",
 ]
 
 [tool.hatch.envs.types.scripts]
-check = "mypy --strict --install-types --non-interactive {args:src tests}"
+check = "mypy --strict {args:src tests}"
 
 [tool.ruff.lint]
 ignore = [
