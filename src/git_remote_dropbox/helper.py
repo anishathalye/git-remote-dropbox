@@ -169,7 +169,7 @@ class Helper:
         Handle the fetch command.
         """
         while True:
-            _, sha, value = line.split(" ")
+            _, sha, _ = line.split(" ")
             self._fetch(sha)
             line = readline()
             if line == "":

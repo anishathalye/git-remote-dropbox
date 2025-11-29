@@ -40,7 +40,7 @@ def stdout_to_binary() -> None:
     Ensure that stdout is in binary mode on windows
     """
     if sys.platform == "win32":
-        import msvcrt
+        import msvcrt  # noqa: PLC0415
 
         msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
 
@@ -232,10 +232,8 @@ class Config:
                     self._named_tokens[username] = token
             self.save()
         elif version != self._VERSION:
-            raise ValueError(
-                'expected config version %d, got %s; delete the config file "%s" to re-initialize'
-                % (self._VERSION, version, self._filename)
-            )
+            msg = f'expected config version {self._VERSION}, got {version}; delete the config file "{self._filename}" to re-initialize'
+            raise ValueError(msg)
         else:
             # version is correct, parse
             default_token_rep = rep["tokens"]["default"]
@@ -269,7 +267,7 @@ class Config:
 def atomic_write(contents: bytes, path: str) -> None:
     # same directory as path to avoid being on a different filesystem
     try:
-        temp_file = tempfile.NamedTemporaryFile(dir=os.path.dirname(path), delete=False)
+        temp_file = tempfile.NamedTemporaryFile(dir=os.path.dirname(path), delete=False)  # noqa: SIM115
         temp_file.write(contents)
         temp_file.flush()
         os.fsync(temp_file.fileno())
