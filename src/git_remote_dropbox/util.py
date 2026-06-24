@@ -130,27 +130,34 @@ class Token(ABC):
 
 class RefreshToken(Token):
     _value: str
+    _app_key: str
 
-    def __init__(self, value: str) -> None:
+    def __init__(self, value: str, app_key: str) -> None:
         self._value = value
+        self._app_key = app_key
 
     def serialize(self) -> Any:
-        return ["refresh", self._value]
+        return ["refresh", self._value, self._app_key]
 
     @classmethod
     def parse(cls, rep: Any) -> "RefreshToken":
+        # v2 style
+        if isinstance(rep, list) and len(rep) == 2 and rep[0] == "refresh" and isinstance(rep[1], str):  # noqa: PLR2004
+            return RefreshToken(rep[1], APP_KEY)
+        # v3 style
         if (
-            not isinstance(rep, list)
-            or len(rep) != 2  # noqa: PLR2004
-            or rep[0] != "refresh"
-            or not isinstance(rep[1], str)
+            isinstance(rep, list)
+            and len(rep) == 3  # noqa: PLR2004
+            and rep[0] == "refresh"
+            and isinstance(rep[1], str)
+            and isinstance(rep[2], str)
         ):
-            msg = "cannot parse as RefreshToken"
-            raise ValueError(msg)
-        return RefreshToken(rep[1])
+            return RefreshToken(rep[1], rep[2])
+        msg = "cannot parse as RefreshToken"
+        raise ValueError(msg)
 
     def connect(self) -> dropbox.Dropbox:
-        return dropbox.Dropbox(oauth2_refresh_token=self._value, app_key=APP_KEY)
+        return dropbox.Dropbox(oauth2_refresh_token=self._value, app_key=self._app_key)
 
 
 class LongLivedToken(Token):
@@ -179,7 +186,7 @@ class LongLivedToken(Token):
 
 
 def parse_token(rep: Any) -> Token:
-    for token_type in [RefreshToken, LongLivedToken]:
+    for token_type in (RefreshToken, LongLivedToken):
         try:
             return token_type.parse(rep)
         except ValueError:
@@ -193,7 +200,7 @@ class Config:
     A class to manage configuration data.
     """
 
-    _VERSION: int = 2
+    _VERSION: int = 3
 
     _filename: str
     _default_token: Optional[Token]
@@ -221,7 +228,11 @@ class Config:
         with open(self._filename) as f:
             rep = json.load(f)
         version = rep.get("version")
-        # try to migrate if necessary
+        # cannot parse future versions
+        if version is not None and (not isinstance(version, int) or version > self._VERSION):
+            msg = f'expected config version <= {self._VERSION}, got {version}; upgrade git-remote-dropbox or delete the config file "{self._filename}" to re-initialize'
+            raise ValueError(msg)
+        # support all past versions
         if version is None:
             # v1 style config, before we had versions
             for username, token_rep in rep.items():
@@ -230,17 +241,16 @@ class Config:
                     self._default_token = token
                 else:
                     self._named_tokens[username] = token
-            self.save()
-        elif version != self._VERSION:
-            msg = f'expected config version {self._VERSION}, got {version}; delete the config file "{self._filename}" to re-initialize'
-            raise ValueError(msg)
         else:
-            # version is correct, parse
+            # current parser supports parsing as v2 or v3 style config
             default_token_rep = rep["tokens"]["default"]
             if default_token_rep:
                 self._default_token = parse_token(default_token_rep)
             for username, token_rep in rep["tokens"]["named"].items():
                 self._named_tokens[username] = parse_token(token_rep)
+        # upgrade file on disk if necessary
+        if version != self._VERSION:
+            self.save()
 
     def get_default_token(self) -> Optional[Token]:
         return self._default_token

@@ -48,6 +48,13 @@ concurrent operations, even when using a shared folder.
 Run `git dropbox login` and follow the instructions to authenticate with OAuth
 and log in to your Dropbox account.
 
+If you'd like to scope the access to an [app
+folder](https://help.dropbox.com/integrations/third-party-apps), you can run
+`git dropbox login --app-folder`. With this setup, paths will be rooted in a
+"git-remote-dropbox repos" [app folder in your Dropbox
+account](https://www.dropbox.com/home/Apps). Note that app folders [**cannot be
+shared**](https://community.dropbox.com/en/discussion/38534/sharing-of-folders-inside-the-apps-folder).
+
 ## Sharing
 
 The above gives you a way to create a Git repository on Dropbox and use it from multiple machines that you own. In other words, it's a convenient way to share a remote with your laptop and your desktop.

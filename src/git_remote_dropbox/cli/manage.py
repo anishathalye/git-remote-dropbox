@@ -34,6 +34,7 @@ def main() -> None:
 
     parser_login = subparsers.add_parser("login", help="log in to Dropbox")
     parser_login.add_argument("username", type=str, help="username/tag", nargs="?", default=None)
+    parser_login.add_argument("--app-folder", action="store_true", help="scope access to an app-specific folder")
 
     parser_logout = subparsers.add_parser("logout", help="log out from Dropbox")
     parser_logout.add_argument("username", type=str, help="username/tag", nargs="?", default=None)
@@ -49,7 +50,7 @@ def main() -> None:
     elif args.command == "version":
         version()
     elif args.command == "login":
-        login(args.username)
+        login(args.username, app_folder=args.app_folder)
     elif args.command == "logout":
         logout(args.username)
     elif args.command == "show-logins":
@@ -99,9 +100,10 @@ def set_head(remote: str, branch: str) -> None:
     print(f"Updated remote HEAD to '{remote_ref}'.")
 
 
-def login(username: Optional[str]) -> None:
+def login(username: Optional[str], *, app_folder: bool) -> None:
+    app_key = constants.APP_FOLDER_APP_KEY if app_folder else constants.APP_KEY
     auth_flow = dropbox.DropboxOAuth2FlowNoRedirect(
-        constants.APP_KEY,
+        app_key,
         use_pkce=True,
         token_access_type="offline",  # noqa: S106
     )
@@ -113,7 +115,7 @@ def login(username: Optional[str]) -> None:
     auth_code = input("Enter authorization code: ").strip()
     try:
         oauth_result = auth_flow.finish(auth_code)
-        token = RefreshToken(oauth_result.refresh_token)
+        token = RefreshToken(oauth_result.refresh_token, app_key)
     except Exception:  # noqa: BLE001
         error("failed to log in; did you copy the code correctly?")
 
