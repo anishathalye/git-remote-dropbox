@@ -39,9 +39,9 @@ concurrent operations, even when using a shared folder.
 ### Install git-remote-dropbox
 
 1. Prerequisites:
-   1. `python` and matching `pip`
+   1. [`uv`](https://docs.astral.sh/uv/) (or other tool like `pip`)
    2. `git`
-2. Install this package with `pip install git-remote-dropbox`. Use `which git-remote-dropbox` to make sure it's available via `$PATH`. If not, edit `$PATH` appropriately.
+2. Install this package with `uv tool install git-remote-dropbox`. Use `which git-remote-dropbox` to make sure it's available via `$PATH`.
 
 ### Log in to Dropbox
 
