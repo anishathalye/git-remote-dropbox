@@ -51,7 +51,7 @@ and log in to your Dropbox account.
 If you'd like to scope the access to an [app
 folder](https://help.dropbox.com/integrations/third-party-apps), you can run
 `git dropbox login --app-folder`. With this setup, paths will be rooted in a
-"git-remote-dropbox repos" [app folder in your Dropbox
+"git-remote-dropbox-repos" [app folder in your Dropbox
 account](https://www.dropbox.com/home/Apps). Note that app folders [**cannot be
 shared**](https://community.dropbox.com/en/discussion/38534/sharing-of-folders-inside-the-apps-folder).
 
